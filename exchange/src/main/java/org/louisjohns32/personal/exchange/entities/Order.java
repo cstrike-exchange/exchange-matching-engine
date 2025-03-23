@@ -1,20 +1,69 @@
 package org.louisjohns32.personal.exchange.entities;
 
+
+import jakarta.validation.constraints.Min;
+
+
 public class Order {
-	private long quantity;
-	private long price;
-	private long filledQuantity;
+	private final long id;
 	
-	public long getRemainingQuantity() {
+	@Min(0)
+	private final double quantity;
+	
+	@Min(0)
+	private final double price;
+	
+	private double filledQuantity;
+	
+	public double getRemainingQuantity() {
 		return quantity - filledQuantity;
 	}
 	
-	public void fill(long quantity) throws IllegalArgumentException {
-		if(quantity > getRemainingQuantity()) {
-			throw new IllegalArgumentException(String.format(
-					"Tried to fill %d units, but order has only %d remaining.", quantity, getRemainingQuantity()));
-		}
-		
-		filledQuantity += quantity; // TODO how should order book level be updated?
+	
+
+	public Order(long id, @Min(0) double quantity, @Min(0) double price, double filledQuantity) {
+		super();
+		this.id = 0;
+		this.quantity = quantity;
+		this.price = price;
+		this.filledQuantity = filledQuantity;
 	}
+
+
+
+	public Order(long id, Order order) {
+		this.id = id;
+		this.quantity = order.getQuantity();
+		this.price = order.getPrice();
+		this.filledQuantity = order.getFilledQuantity();
+	}
+
+
+
+	public long getId() {
+		return id;
+	}
+
+
+	public double getQuantity() {
+		return quantity;
+	}
+
+	public double getPrice() {
+		return price;
+	}
+
+	public double getFilledQuantity() {
+		return filledQuantity;
+	}
+
+	public void setFilledQuantity(long filledQuantity) {
+		this.filledQuantity = filledQuantity;
+	}
+	
+	
+	
+	
+	
+	
 }
