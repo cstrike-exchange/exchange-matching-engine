@@ -20,11 +20,13 @@ public class OrderBookServiceImpl implements OrderBookService {
 	
 	@Autowired
 	private Validator validator;
+	
+	@Autowired
+	private MatchingEngineService matchingEngine;
 
 	@Override
 	@Transactional
 	public Order createOrder(OrderBook orderBook, Order order) {
-		
 		Set<ConstraintViolation<Order>> violations = validator.validate(order);
 		if(!violations.isEmpty()) {
 			throw new ConstraintViolationException(violations);
@@ -35,20 +37,27 @@ public class OrderBookServiceImpl implements OrderBookService {
 		
 		orderBook.addOrder(newOrder);
 		
-		//matchingEngine.match(orderBook);
+		matchingEngine.match(orderBook, newOrder);
 		return newOrder;
 	}
 
 	@Override
-	public void deleteOrderById(long id) {
-		// TODO Auto-generated method stub
-		
+	@Transactional
+	public void deleteOrderById(OrderBook orderBook, long id) {
+		// TODO throw not found exception if no order with id
+		Order order = orderBook.getOrderById(id);
+		orderBook.removeOrder(order);
 	}
 
 	@Override
-	public void fillOrder() {
-		// TODO Auto-generated method stub
-		
+	@Transactional
+	public double fillOrder(OrderBook orderBook, Order order, double amnt) {
+		order.fill(amnt);
+		double amntLeft = order.getRemainingQuantity();
+		if(amntLeft == 0) {
+			deleteOrderById(orderBook, order.getId());
+		}
+		return amntLeft;
 	}
 	
 	

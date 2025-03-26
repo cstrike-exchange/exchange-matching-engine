@@ -7,9 +7,9 @@ public interface OrderBookService {
 	
 	 public Order createOrder(OrderBook orderBook, Order order);
 	 
-	 public void deleteOrderById(long id);
+	 public void deleteOrderById(OrderBook orderBook, long id);
 	 
-	 public void fillOrder(); // ?
+	 public double fillOrder(OrderBook orderBook, Order order, double amnt); 
 	 
 	 
 	 
