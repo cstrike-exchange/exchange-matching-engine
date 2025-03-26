@@ -11,6 +11,7 @@ public interface OrderBookService {
 	 
 	 public double fillOrder(OrderBook orderBook, Order order, double amnt); 
 	 
+	public void match(OrderBook orderBook, Order newOrder);
 	 
 	 
 	 
