@@ -20,10 +20,10 @@ public class MatchingEngineServiceImpl implements MatchingEngineService {
 	}
 	
 	private boolean matchWithLevel(OrderBook orderBook, Order newOrder, OrderBookLevel opposingLevel) {
-		if(newOrder.isFilled()) return false;
+		if(newOrder.isFilled() || opposingLevel == null) return false;
 		if(
-				(newOrder.getSide() == Side.BUY && opposingLevel.getPrice() >= newOrder.getPrice())
-				|| (newOrder.getSide() == Side.SELL && opposingLevel.getPrice() <= newOrder.getPrice())
+				(newOrder.getSide() == Side.BUY && opposingLevel.getPrice() <= newOrder.getPrice())
+				|| (newOrder.getSide() == Side.SELL && opposingLevel.getPrice() >= newOrder.getPrice())
 		) {
 			Order opposingOrder = opposingLevel.getOrder();
 			double amntToFill = Math.min(opposingOrder.getRemainingQuantity(), newOrder.getRemainingQuantity());
