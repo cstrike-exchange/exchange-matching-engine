@@ -26,6 +26,7 @@ import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -42,12 +43,10 @@ public class OrderBookServiceTest {
     private Validator validator;
 
     @Mock
-    private MatchingEngineService matchingEngine;
-
-    @Mock
     private OrderBook orderBook;
 
     @InjectMocks
+    @Spy
     private OrderBookServiceImpl orderBookService;
 
     private Order bidOrder;
@@ -70,7 +69,8 @@ public class OrderBookServiceTest {
 
             assertNotNull(newOrder);
             verify(orderBook, times(1)).addOrder(any(Order.class));
-            verify(matchingEngine, times(1)).match(orderBook, newOrder);
+            // TODO verify matching
+            verify(orderBookService, times(1)).match(orderBook, newOrder);
         }
 
         @Test
@@ -81,7 +81,8 @@ public class OrderBookServiceTest {
             assertThrows(ConstraintViolationException.class, () -> orderBookService.createOrder(orderBook, bidOrder));
 
             verify(orderBook, never()).addOrder(any(Order.class));
-            verify(matchingEngine, never()).match(any(), any());
+            
+            verify(orderBookService, never()).match(any(OrderBook.class), any(Order.class));
         }
     }
 
@@ -126,95 +127,135 @@ public class OrderBookServiceTest {
 
     @Nested
     class MatchOrderTests {
+        @Test
+        void executesTrade() {
+            OrderBookLevel bidLevel = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel = mock(OrderBookLevel.class);
+            
+            when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
+            when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
+            when(bidLevel.getPrice()).thenReturn(100.0);
+            when(askLevel.getPrice()).thenReturn(99.0);
+            when(bidLevel.getOrder()).thenReturn(bidOrder);
+            when(askLevel.getOrder()).thenReturn(askOrder);
+            when(orderBook.getOrderById(bidOrder.getId())).thenReturn(bidOrder);
+            when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
 
-        @Nested
-        class OrdersMatch {
+            orderBookService.match(orderBook, bidOrder);
 
-            @Test
-            void executesTrade() {
-                OrderBookLevel bidLevel = mock(OrderBookLevel.class);
-                OrderBookLevel askLevel = mock(OrderBookLevel.class);
-                
-                bidOrder = new Order(1, Side.BUY, 5.0, 100.0);
-                askOrder = new Order(2, Side.SELL, 5.0, 99.0);
-
-                when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
-                when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
-                when(bidLevel.getPrice()).thenReturn(100.0);
-                when(askLevel.getPrice()).thenReturn(99.0);
-                when(bidLevel.getOrder()).thenReturn(bidOrder);
-                when(askLevel.getOrder()).thenReturn(askOrder);
-                when(orderBook.getOrderById(bidOrder.getId())).thenReturn(bidOrder);
-                when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
-
-                orderBookService.match(orderBook, bidOrder);
-
-                assertEquals(0.0, askOrder.getRemainingQuantity());
-                assertEquals(0.0, bidOrder.getRemainingQuantity());
-                verify(orderBook).removeOrder(askOrder);
-                verify(orderBook).removeOrder(bidOrder);
-            }
+            assertEquals(0.0, askOrder.getRemainingQuantity());
+            assertEquals(0.0, bidOrder.getRemainingQuantity());
+            verify(orderBook).removeOrder(askOrder);
+            verify(orderBook).removeOrder(bidOrder);
         }
 
-        @Nested
-        class NoValidTrades {
+        @Test
+        void doesNotExecuteTrade() {
+            OrderBookLevel bidLevel = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel = mock(OrderBookLevel.class);
 
-            @Test
-            void doesNotExecuteTrade() {
-                OrderBookLevel bidLevel = mock(OrderBookLevel.class);
-                OrderBookLevel askLevel = mock(OrderBookLevel.class);
+            bidOrder = new Order(1, Side.BUY, 5.0, 98.0);
+            askOrder = new Order(2, Side.SELL, 5.0, 99.0);
 
-                bidOrder = new Order(1, Side.BUY, 5.0, 98.0);
-                askOrder = new Order(2, Side.SELL, 5.0, 99.0);
+            when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
+            when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
+            when(bidLevel.getPrice()).thenReturn(98.0);
+            when(askLevel.getPrice()).thenReturn(99.0);
+            when(bidLevel.getOrder()).thenReturn(bidOrder);
+            when(askLevel.getOrder()).thenReturn(askOrder);
 
-                when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
-                when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
-                when(bidLevel.getPrice()).thenReturn(98.0);
-                when(askLevel.getPrice()).thenReturn(99.0);
-                when(bidLevel.getOrder()).thenReturn(bidOrder);
-                when(askLevel.getOrder()).thenReturn(askOrder);
+            orderBookService.match(orderBook, bidOrder);
 
-                orderBookService.match(orderBook, bidOrder);
-
-                assertEquals(5.0, askOrder.getRemainingQuantity());
-                assertEquals(5.0, bidOrder.getRemainingQuantity());
-                verify(orderBook, never()).removeOrder(any());
-            }
+            assertEquals(5.0, askOrder.getRemainingQuantity());
+            assertEquals(5.0, bidOrder.getRemainingQuantity());
+            verify(orderBook, never()).removeOrder(any());
         }
+        
+        @Test
+        void correctlyHandlesRemainingQuantity() {
+            OrderBookLevel bidLevel = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel = mock(OrderBookLevel.class);
 
-        @Nested
-        class PartialFill {
+            askOrder = new Order(2, Side.SELL, 3.0, 99.0);
 
-            @Test
-            void correctlyHandlesRemainingQuantity() {
-                OrderBookLevel bidLevel = mock(OrderBookLevel.class);
-                OrderBookLevel askLevel = mock(OrderBookLevel.class);
+            when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
+            when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
+            when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
+            when(bidLevel.getPrice()).thenReturn(100.0);
+            when(askLevel.getPrice()).thenReturn(99.0);
+            when(bidLevel.getOrder()).thenReturn(bidOrder);
+            when(askLevel.getOrder()).thenReturn(askOrder);
 
-                bidOrder = new Order(1, Side.BUY, 5.0, 100.0);
-                askOrder = new Order(2, Side.SELL, 3.0, 99.0);
+            doAnswer(invocation -> {
+                when(orderBook.getLowestAskLevel()).thenReturn(null);  
+                return null;
+            }).when(orderBook).removeOrder(askOrder);
 
-                when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
-                when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
-                when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
-                when(bidLevel.getPrice()).thenReturn(100.0);
-                when(askLevel.getPrice()).thenReturn(99.0);
-                when(bidLevel.getOrder()).thenReturn(bidOrder);
-                when(askLevel.getOrder()).thenReturn(askOrder);
+            orderBookService.match(orderBook, bidOrder);
 
-                doAnswer(invocation -> {
-                    when(orderBook.getLowestAskLevel()).thenReturn(null);  
-                    return null;
-                }).when(orderBook).removeOrder(askOrder);
+            assertEquals(2.0, bidOrder.getRemainingQuantity());
+            assertEquals(0.0, askOrder.getRemainingQuantity());  
 
-                orderBookService.match(orderBook, bidOrder);
+            verify(orderBook, times(1)).removeOrder(askOrder);
 
-                assertEquals(2.0, bidOrder.getRemainingQuantity());
-                assertEquals(0.0, askOrder.getRemainingQuantity());  
+            assertNull(orderBook.getLowestAskLevel(), "Expected lowest ask level to be null after removal.");
+        }
+        
+        @Test
+        void matchesWithMultipleSmallerOrders() {
+            OrderBookLevel askLevel1 = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel2 = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel3 = mock(OrderBookLevel.class);
 
-                verify(orderBook, times(1)).removeOrder(askOrder);
+            bidOrder = new Order(1, Side.BUY, 20.0, 100.0);
+            Order smallAsk1 = new Order(2, Side.SELL, 3.0, 99.0);
+            Order smallAsk2 = new Order(3, Side.SELL, 6.0, 99.0);
+            Order smallAsk3 = new Order(4, Side.SELL, 1.0, 98.0);
+            Order ask4 = new Order(5, Side.SELL, 1.0, 101.0); 
 
-                assertNull(orderBook.getLowestAskLevel(), "Expected lowest ask level to be null after removal.");
-            }
+            when(orderBook.getLowestAskLevel()).thenReturn(askLevel2);
+
+            when(orderBook.getOrderById(smallAsk1.getId())).thenReturn(smallAsk1);
+            when(orderBook.getOrderById(smallAsk2.getId())).thenReturn(smallAsk2);
+            when(orderBook.getOrderById(smallAsk3.getId())).thenReturn(smallAsk3);
+            when(orderBook.getOrderById(ask4.getId())).thenReturn(ask4);
+
+            when(askLevel1.getPrice()).thenReturn(99.0);
+            when(askLevel1.getOrder()).thenReturn(smallAsk1);
+
+            when(askLevel2.getPrice()).thenReturn(98.0);
+            when(askLevel2.getOrder()).thenReturn(smallAsk3);
+
+            when(askLevel3.getPrice()).thenReturn(101.0);
+            when(askLevel3.getOrder()).thenReturn(ask4);
+
+            doAnswer(invocation -> {
+                when(orderBook.getLowestAskLevel()).thenReturn(askLevel1);
+                return null;
+            }).when(orderBook).removeOrder(smallAsk3);
+
+            doAnswer(invocation -> {
+                when(askLevel1.getOrder()).thenReturn(smallAsk2);
+                return null;
+            }).when(orderBook).removeOrder(smallAsk1);
+
+            doAnswer(invocation -> {
+                when(orderBook.getLowestAskLevel()).thenReturn(askLevel3);
+                return null;
+            }).when(orderBook).removeOrder(smallAsk2);
+
+            	
+            orderBookService.match(orderBook, bidOrder);
+
+            assertEquals(10.0, bidOrder.getRemainingQuantity(), "Bid order should have 10/20 filled.");
+            assertEquals(0.0, smallAsk1.getRemainingQuantity(), "First small ask should be fully filled.");
+            assertEquals(0.0, smallAsk2.getRemainingQuantity(), "Second small ask should be fully filled.");
+            assertEquals(0.0, smallAsk3.getRemainingQuantity(), "Third small ask should be fully filled.");
+            assertEquals(1.0, ask4.getRemainingQuantity(), "Fourth ask shouldn't be filled at all.");
+            verify(orderBook, times(1)).removeOrder(smallAsk1);
+            verify(orderBook, times(1)).removeOrder(smallAsk2);
+            verify(orderBook, times(1)).removeOrder(smallAsk3);
+            verify(orderBook, never()).removeOrder(ask4);
         }
     }
 }

@@ -23,9 +23,6 @@ public class OrderBookServiceImpl implements OrderBookService {
 	@Autowired
 	private Validator validator;
 	
-	@Autowired
-	private MatchingEngineService matchingEngine;
-
 	@Override
 	@Transactional
 	public Order createOrder(OrderBook orderBook, Order order) {
@@ -39,7 +36,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 		
 		orderBook.addOrder(newOrder);
 		
-		matchingEngine.match(orderBook, newOrder);
+		match(orderBook, newOrder);
 		return newOrder;
 	}
 
@@ -63,6 +60,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 	
 	@Override
+	@Transactional
 	public void match(OrderBook orderBook, Order newOrder) {
 		OrderBookLevel opposingLevel;
 		do {
