@@ -1,11 +1,15 @@
 package org.louisjohns32.personal.exchange.entities;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.louisjohns32.personal.exchange.constants.Side;
 
 public class OrderBookLevel {
+	
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	// contains orders
 	
@@ -29,22 +33,47 @@ public class OrderBookLevel {
 	}
 	
 	public void addOrder(Order order) {
-		orders.addLast(order);
+		lock.writeLock().lock();
+		try {
+			orders.addLast(order);	
+		} finally {
+			lock.writeLock().unlock();
+		}
 	}
 	
 	public Order getOrder() {
-		return orders.getFirst();
+		lock.readLock().lock();
+		try {
+			return orders.getFirst();
+		} finally {
+			lock.readLock().unlock();
+		}
 	}
 	
 	public void removeOrderById(long id) { // O(n), should be optimised in future (easy to do just have to write up linked list class)
-		orders.removeIf(order ->(order.getId() == id));
+		lock.writeLock().lock();
+		try {
+			orders.removeIf(order ->(order.getId() == id));
+		} finally {
+			lock.writeLock().unlock();
+		}
 	}
 	
 	public List<Order> getOrders() {
-		return orders;
+		lock.readLock().lock();
+		try {
+			return Collections.unmodifiableList(orders);
+		} finally {
+			lock.readLock().unlock();
+		}
 	}
 	
 	public boolean isEmpty() {
-		return orders.isEmpty();
+		lock.readLock().lock();
+		try {
+			return orders.isEmpty();
+		} finally {
+			lock.readLock().unlock();
+		}
 	}
 }

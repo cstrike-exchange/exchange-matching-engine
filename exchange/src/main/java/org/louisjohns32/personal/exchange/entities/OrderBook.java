@@ -1,32 +1,39 @@
 package org.louisjohns32.personal.exchange.entities;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.louisjohns32.personal.exchange.constants.Side;
 
 public class OrderBook {
 	
+	private final ReentrantReadWriteLock levelLock = new ReentrantReadWriteLock();
 	
-	private TreeMap<Double, OrderBookLevel> bidLevels; 
-	private TreeMap<Double, OrderBookLevel> askLevels;
+	private ConcurrentSkipListMap<Double, OrderBookLevel> bidLevels; 
+	private ConcurrentSkipListMap<Double, OrderBookLevel> askLevels;
 	
-	private Map<Long, Order> orderMap; // idk if this is the best way to do this
+	private Map<Long, Order> orderMap; 
 	
 	public OrderBook() {
-		bidLevels = new TreeMap<Double, OrderBookLevel>();
-		askLevels = new TreeMap<Double, OrderBookLevel>();
-		orderMap = new HashMap<Long, Order>();
+		bidLevels = new ConcurrentSkipListMap<Double, OrderBookLevel>();
+		askLevels = new ConcurrentSkipListMap<Double, OrderBookLevel>();
+		orderMap = new ConcurrentHashMap<Long, Order>();
 	}
 	
 	public void addOrder(Order order) {
-		OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
-		if(level == null) {
-			level = createLevel(order.getPrice(), order.getSide());
+		levelLock.writeLock().lock();
+		try {
+			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+			if(level == null) {
+				level = createLevel(order.getPrice(), order.getSide());
+			}
+			level.addOrder(order);
+		} finally {
+			levelLock.writeLock().unlock();
 		}
-		level.addOrder(order);
 		orderMap.put(order.getId(), order);
 	}
 	
@@ -43,13 +50,15 @@ public class OrderBook {
 	}
 	
 	public OrderBookLevel getHighestBidLevel() {
-		if(bidLevels.isEmpty()) return null;
-		return bidLevels.lastEntry().getValue();
+		Entry<Double, OrderBookLevel> entry = bidLevels.lastEntry();
+		if(entry == null) return null;
+		return entry.getValue();
 	}
 	
 	public OrderBookLevel getLowestAskLevel() {
-		if(askLevels.isEmpty()) return null;
-		return askLevels.firstEntry().getValue();
+		Entry<Double, OrderBookLevel> entry = askLevels.firstEntry();
+		if(entry == null) return null;
+		return entry.getValue();
 	}
 	
 	public Order getOrderById(long id) {
@@ -57,10 +66,15 @@ public class OrderBook {
 	}
 	
 	public void removeOrder(Order order) { 
-		OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
-		level.removeOrderById(order.getId());
-		orderMap.remove(order.getId());
-		if(level.isEmpty()) removeLevel(level);
+		levelLock.writeLock().lock();
+		try {
+			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+			level.removeOrderById(order.getId());
+			orderMap.remove(order.getId());
+			if(level.isEmpty()) removeLevel(level);
+		} finally {
+			levelLock.writeLock().unlock();
+		}
 	}
 	
 	private void removeLevel(OrderBookLevel level) {
