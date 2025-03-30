@@ -3,12 +3,12 @@ package org.louisjohns32.personal.exchange.entities;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.louisjohns32.personal.exchange.constants.Side;
 
 public class OrderBook {
 	
-	// has levels at different price points
 	
 	private TreeMap<Double, OrderBookLevel> bidLevels; 
 	private TreeMap<Double, OrderBookLevel> askLevels;
@@ -43,10 +43,12 @@ public class OrderBook {
 	}
 	
 	public OrderBookLevel getHighestBidLevel() {
+		if(bidLevels.isEmpty()) return null;
 		return bidLevels.lastEntry().getValue();
 	}
 	
 	public OrderBookLevel getLowestAskLevel() {
+		if(askLevels.isEmpty()) return null;
 		return askLevels.firstEntry().getValue();
 	}
 	
@@ -61,7 +63,7 @@ public class OrderBook {
 		if(level.isEmpty()) removeLevel(level);
 	}
 	
-	private synchronized void removeLevel(OrderBookLevel level) {
+	private void removeLevel(OrderBookLevel level) {
 		if(level.getSide() == Side.BUY) bidLevels.remove(level.getPrice());
 		else askLevels.remove(level.getPrice());
 	}
