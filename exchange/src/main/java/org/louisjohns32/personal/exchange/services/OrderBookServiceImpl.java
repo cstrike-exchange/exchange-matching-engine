@@ -24,7 +24,6 @@ public class OrderBookServiceImpl implements OrderBookService {
 	private Validator validator;
 	
 	@Override
-	@Transactional
 	public Order createOrder(OrderBook orderBook, Order order) {
 		Set<ConstraintViolation<Order>> violations = validator.validate(order);
 		if(!violations.isEmpty()) {
@@ -41,7 +40,6 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	@Transactional
 	public void deleteOrderById(OrderBook orderBook, long id) {
 		// TODO throw not found exception if no order with id
 		Order order = orderBook.getOrderById(id);
@@ -49,7 +47,6 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	@Transactional
 	public double fillOrder(OrderBook orderBook, Order order, double amnt) {
 		order.fill(amnt);
 		double amntLeft = order.getRemainingQuantity();
@@ -60,7 +57,6 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 	
 	@Override
-	@Transactional
 	public void match(OrderBook orderBook, Order newOrder) {
 		OrderBookLevel opposingLevel;
 		do {
