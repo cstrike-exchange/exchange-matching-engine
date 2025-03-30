@@ -54,14 +54,14 @@ public class OrderBook {
 		return orderMap.get(id);
 	}
 	
-	public void removeOrder(Order order) { // this needs to be atomic
-		OrderBookLevel level = getLevel(order.getPrice(), order.getSide()); // TODO change to side
+	public void removeOrder(Order order) { 
+		OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
 		level.removeOrderById(order.getId());
 		orderMap.remove(order.getId());
 		if(level.isEmpty()) removeLevel(level);
 	}
 	
-	private void removeLevel(OrderBookLevel level) {
+	private synchronized void removeLevel(OrderBookLevel level) {
 		if(level.getSide() == Side.BUY) bidLevels.remove(level.getPrice());
 		else askLevels.remove(level.getPrice());
 	}
