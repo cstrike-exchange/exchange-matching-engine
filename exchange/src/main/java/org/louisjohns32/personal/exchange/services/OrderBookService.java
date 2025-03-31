@@ -5,12 +5,16 @@ import org.louisjohns32.personal.exchange.entities.OrderBook;
 
 public interface OrderBookService {
 	
-	 public Order createOrder(OrderBook orderBook, Order order);
+	public OrderBook getOrderBook(String symbol);
+	
+	public void createOrderBook(String symbol); // idk about storing orderbooks in this service
+	
+	public Order createOrder(OrderBook orderBook, Order order);
 	 
-	 public void deleteOrderById(OrderBook orderBook, long id);
-	 
-	 public double fillOrder(OrderBook orderBook, Order order, double amnt); 
-	 
+	public void deleteOrderById(OrderBook orderBook, long id);
+ 
+	public double fillOrder(OrderBook orderBook, Order order, double amnt); 
+ 
 	public void match(OrderBook orderBook, Order newOrder);
 	 
 	 

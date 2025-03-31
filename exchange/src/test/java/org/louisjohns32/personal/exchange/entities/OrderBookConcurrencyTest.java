@@ -20,7 +20,7 @@ public class OrderBookConcurrencyTest {
 	// i've added this to increase contention between threads, increasing the chance of encountering race conditions 
 	private void sleepWithRandomDelay() {
         try {
-            Thread.sleep((long) (Math.random() * 40 + 1));
+            Thread.sleep((long) (Math.random() * 4 + 1));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -28,7 +28,7 @@ public class OrderBookConcurrencyTest {
 	
 	@BeforeEach
 	public void setup() {
-		orderBook = new OrderBook();
+		orderBook = new OrderBook("SYMBOL");
 	}
 
     @Test
