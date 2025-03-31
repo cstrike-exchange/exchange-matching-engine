@@ -54,8 +54,34 @@ public class OrderBookServiceTest {
 
     @BeforeEach
     void setUp() {
-        bidOrder = new Order(1, Side.BUY, 5.0, 100.0);
+        bidOrder = new Order(1, Side.BUY, 5.0, 100.0); 
         askOrder = new Order(2, Side.SELL, 5.0, 99.0);
+    }
+    
+    @Nested
+    class OrderBookRegistryTests {
+    	@Test
+    	void createOrderBook() {
+    		String symbol = "SYMBOL";
+    		orderBookService.createOrderBook(symbol);
+    		
+    		OrderBook orderBook = orderBookService.getOrderBook(symbol);
+    		
+    		assertEquals(symbol, orderBook.getSymbol());
+    	}
+    	
+    	@Test
+    	void createDuplicateOrderBook() {
+    		String symbol = "SYMBOL";
+    		orderBookService.createOrderBook(symbol);
+    		
+    		OrderBook orderBook = orderBookService.getOrderBook(symbol);
+    		orderBookService.createOrderBook(symbol);
+    		
+    		assertEquals(symbol, orderBook.getSymbol());
+    		assertEquals(orderBook, orderBookService.getOrderBook(symbol));
+    	}
+    	
     }
 
     @Nested
@@ -128,7 +154,7 @@ public class OrderBookServiceTest {
     @Nested
     class MatchOrderTests {
         @Test
-        void executesTrade() {
+        void executesTradeBid() {
             OrderBookLevel bidLevel = mock(OrderBookLevel.class);
             OrderBookLevel askLevel = mock(OrderBookLevel.class);
             
@@ -142,6 +168,28 @@ public class OrderBookServiceTest {
             when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
 
             orderBookService.match(orderBook, bidOrder);
+
+            assertEquals(0.0, askOrder.getRemainingQuantity());
+            assertEquals(0.0, bidOrder.getRemainingQuantity());
+            verify(orderBook).removeOrder(askOrder);
+            verify(orderBook).removeOrder(bidOrder);
+        }
+        
+        @Test
+        void executesTradeAsk() {
+            OrderBookLevel bidLevel = mock(OrderBookLevel.class);
+            OrderBookLevel askLevel = mock(OrderBookLevel.class);
+            
+            when(orderBook.getHighestBidLevel()).thenReturn(bidLevel);
+            when(orderBook.getLowestAskLevel()).thenReturn(askLevel);
+            when(bidLevel.getPrice()).thenReturn(100.0);
+            when(askLevel.getPrice()).thenReturn(99.0);
+            when(bidLevel.getOrder()).thenReturn(bidOrder);
+            when(askLevel.getOrder()).thenReturn(askOrder);
+            when(orderBook.getOrderById(bidOrder.getId())).thenReturn(bidOrder);
+            when(orderBook.getOrderById(askOrder.getId())).thenReturn(askOrder);
+
+            orderBookService.match(orderBook, askOrder);
 
             assertEquals(0.0, askOrder.getRemainingQuantity());
             assertEquals(0.0, bidOrder.getRemainingQuantity());

@@ -21,7 +21,7 @@ public class OrderBookTest {
 	
 	@BeforeEach
 	public void setup() {
-		orderBook = new OrderBook();
+		orderBook = new OrderBook("SYMBOL");
 	}
 	
 	@Nested
