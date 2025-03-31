@@ -1,6 +1,8 @@
 package org.louisjohns32.personal.exchange.services;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.louisjohns32.personal.exchange.constants.Side;
@@ -10,7 +12,6 @@ import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import jakarta.transaction.Transactional;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
@@ -22,6 +23,22 @@ public class OrderBookServiceImpl implements OrderBookService {
 	
 	@Autowired
 	private Validator validator;
+	
+	private ConcurrentHashMap<String, OrderBook> orderBookMap;
+	
+	public OrderBookServiceImpl() {
+		orderBookMap = new ConcurrentHashMap<String, OrderBook>();
+	}
+	
+	@Override
+	public OrderBook getOrderBook(String symbol) {
+		return orderBookMap.get(symbol);
+	}
+
+	@Override
+	public void createOrderBook(String symbol) {
+		orderBookMap.putIfAbsent(symbol, new OrderBook(symbol));
+	}
 	
 	@Override
 	public Order createOrder(OrderBook orderBook, Order order) {
@@ -84,8 +101,4 @@ public class OrderBookServiceImpl implements OrderBookService {
 		if(order.getSide() == Side.BUY) return orderBook.getLowestAskLevel();
 		else return orderBook.getHighestBidLevel();
 	}
-	
-	
-	
-	
 }
