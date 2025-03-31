@@ -17,23 +17,31 @@ public class OrderBook {
 	
 	private Map<Long, Order> orderMap; 
 	
-	public OrderBook() {
+	private final String symbol;
+	
+	public OrderBook(String symbol) {
+		this.symbol = symbol;
 		bidLevels = new ConcurrentSkipListMap<Double, OrderBookLevel>();
 		askLevels = new ConcurrentSkipListMap<Double, OrderBookLevel>();
 		orderMap = new ConcurrentHashMap<Long, Order>();
 	}
 	
+	public String getSymbol() {
+		return symbol;
+	}
+	
 	public void addOrder(Order order) {
+		OrderBookLevel level;
 		levelLock.writeLock().lock();
 		try {
-			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+			level = getLevel(order.getPrice(), order.getSide());
 			if(level == null) {
 				level = createLevel(order.getPrice(), order.getSide());
 			}
-			level.addOrder(order);
 		} finally {
 			levelLock.writeLock().unlock();
 		}
+		level.addOrder(order);
 		orderMap.put(order.getId(), order);
 	}
 	
@@ -43,10 +51,15 @@ public class OrderBook {
 	}
 	
 	private OrderBookLevel createLevel(double price, Side side) {
-		OrderBookLevel level = new OrderBookLevel(price, side);
-		if(side == Side.BUY) bidLevels.put(price, level);
-		else askLevels.put(price, level);
-		return level;
+		levelLock.writeLock().lock();
+		try {
+			OrderBookLevel level = new OrderBookLevel(price, side);
+			if(side == Side.BUY) bidLevels.put(price, level);
+			else askLevels.put(price, level);
+			return level;
+		} finally {
+			levelLock.writeLock().unlock();
+		}
 	}
 	
 	public OrderBookLevel getHighestBidLevel() {
@@ -66,16 +79,12 @@ public class OrderBook {
 	}
 	
 	public void removeOrder(Order order) { 
-		levelLock.writeLock().lock();
-		try {
-			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
-			level.removeOrderById(order.getId());
-			orderMap.remove(order.getId());
-			if(level.isEmpty()) removeLevel(level);
-		} finally {
-			levelLock.writeLock().unlock();
-		}
+		OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+		level.removeOrderById(order.getId());
+		orderMap.remove(order.getId());
+		if(level.isEmpty()) removeLevel(level);
 	}
+
 	
 	private void removeLevel(OrderBookLevel level) {
 		if(level.getSide() == Side.BUY) bidLevels.remove(level.getPrice());
