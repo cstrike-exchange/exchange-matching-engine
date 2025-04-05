@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -14,13 +16,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.louisjohns32.personal.exchange.constants.Side;
+import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
@@ -304,6 +309,108 @@ public class OrderBookServiceTest {
             verify(orderBook, times(1)).removeOrder(smallAsk2);
             verify(orderBook, times(1)).removeOrder(smallAsk3);
             verify(orderBook, never()).removeOrder(ask4);
+        }
+    }
+    
+    // TODO getAggregatedOrderBook tests
+    @Nested
+    class AggregatedOrderBookTests {
+    	@Test
+        void returnsEmptyAggregatedOrderBook() {
+            OrderBook mockOrderBook = mock(OrderBook.class);
+            when(mockOrderBook.getBidLevels()).thenReturn(Collections.emptyNavigableMap());
+            when(mockOrderBook.getAskLevels()).thenReturn(Collections.emptyNavigableMap());
+
+            
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("EMPTY");
+
+            assertNotNull(dto);
+            assertTrue(dto.getBidLevels().isEmpty(), "Expected empty bids");
+            assertTrue(dto.getAskLevels().isEmpty(), "Expected empty asks");
+        }
+
+        @Test
+        void aggregatesOrdersAtSingleBidAndAskLevel() {
+            OrderBook mockOrderBook = mock(OrderBook.class);
+
+            OrderBookLevel bidLevel = new OrderBookLevel(100.0, Side.BUY);
+            bidLevel.addOrder(new Order(1, Side.BUY, 5.0, 100.0));
+
+            OrderBookLevel askLevel = new OrderBookLevel(101.0, Side.SELL);
+            askLevel.addOrder(new Order(2, Side.SELL, 3.0, 101.0));
+
+            when(mockOrderBook.getBidLevels()).thenReturn(new ConcurrentSkipListMap<>(Map.of(100.0, bidLevel)));
+            when(mockOrderBook.getAskLevels()).thenReturn(new ConcurrentSkipListMap<>(Map.of(101.0, askLevel)));
+
+            when(orderBookService.getOrderBook("SINGLE")).thenReturn(mockOrderBook);
+
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("SINGLE");
+
+            assertEquals(1, dto.getBidLevels().size());
+            assertEquals(1, dto.getAskLevels().size());
+
+            assertEquals(100.0, dto.getBidLevels().get(0).getPrice());
+            assertEquals(5.0, dto.getBidLevels().get(0).getVolume());
+
+            assertEquals(101.0, dto.getAskLevels().get(0).getPrice());
+            assertEquals(3.0, dto.getAskLevels().get(0).getVolume());
+        }
+
+        @Test
+        void aggregatesMultipleOrdersAtSameLevel() {
+            OrderBook mockOrderBook = mock(OrderBook.class);
+
+            OrderBookLevel bidLevel = new OrderBookLevel(100.0, Side.BUY);
+            bidLevel.addOrder(new Order(1, Side.BUY, 5.0, 100.0));
+            bidLevel.addOrder(new Order(2, Side.BUY, 10.0, 100.0));
+
+            when(mockOrderBook.getBidLevels()).thenReturn(new ConcurrentSkipListMap<>(Map.of(100.0, bidLevel)));
+            when(mockOrderBook.getAskLevels()).thenReturn(Collections.emptyNavigableMap());
+
+            when(orderBookService.getOrderBook("MULTI")).thenReturn(mockOrderBook);
+
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("MULTI");
+
+            assertEquals(1, dto.getBidLevels().size());
+            assertEquals(15.0, dto.getBidLevels().get(0).getVolume());
+        }
+
+        @Test
+        void aggregatesOrdersAcrossMultipleLevels() {
+            OrderBook mockOrderBook = mock(OrderBook.class);
+
+            OrderBookLevel bidLevel1 = new OrderBookLevel(101.0, Side.BUY);
+            bidLevel1.addOrder(new Order(1, Side.BUY, 5.0, 101.0));
+
+            OrderBookLevel bidLevel2 = new OrderBookLevel(100.0, Side.BUY);
+            bidLevel2.addOrder(new Order(2, Side.BUY, 10.0, 100.0));
+
+            OrderBookLevel askLevel1 = new OrderBookLevel(102.0, Side.SELL);
+            askLevel1.addOrder(new Order(3, Side.SELL, 4.0, 102.0));
+
+            OrderBookLevel askLevel2 = new OrderBookLevel(103.0, Side.SELL);
+            askLevel2.addOrder(new Order(4, Side.SELL, 6.0, 103.0));
+
+            when(mockOrderBook.getBidLevels()).thenReturn(new ConcurrentSkipListMap<>(Map.of(
+                    101.0, bidLevel1,
+                    100.0, bidLevel2
+            )));
+            when(mockOrderBook.getAskLevels()).thenReturn(new ConcurrentSkipListMap<>(Map.of(
+                    102.0, askLevel1,
+                    103.0, askLevel2
+            )));
+
+            when(orderBookService.getOrderBook("FULL")).thenReturn(mockOrderBook);
+
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("FULL");
+
+            assertEquals(2, dto.getBidLevels().size());
+            assertEquals(2, dto.getAskLevels().size());
+
+            assertEquals(5.0, dto.getBidLevels().get(0).getVolume());
+            assertEquals(10.0, dto.getBidLevels().get(1).getVolume());
+            assertEquals(4.0, dto.getAskLevels().get(0).getVolume());
+            assertEquals(6.0, dto.getAskLevels().get(1).getVolume());
         }
     }
 }

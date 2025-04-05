@@ -1,11 +1,15 @@
 package org.louisjohns32.personal.exchange.services;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.louisjohns32.personal.exchange.constants.Side;
+import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
+import org.louisjohns32.personal.exchange.dto.OrderBookLevelDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
@@ -100,5 +104,24 @@ public class OrderBookServiceImpl implements OrderBookService {
 	private OrderBookLevel getOpposingSideLevel(OrderBook orderBook, Order order) {
 		if(order.getSide() == Side.BUY) return orderBook.getLowestAskLevel();
 		else return orderBook.getHighestBidLevel();
+	}
+
+	@Override
+	public OrderBookDTO getAggregatedOrderBook(String symbol) {
+		OrderBook orderBook = orderBookMap.get(symbol);
+		
+		Map<Double, OrderBookLevel> askLevels = orderBook.getAskLevels();
+		Map<Double, OrderBookLevel> bidLevels = orderBook.getBidLevels();
+		
+		List<OrderBookLevelDTO> bidDTOs = new ArrayList<OrderBookLevelDTO>();
+		List<OrderBookLevelDTO> askDTOs = new ArrayList<OrderBookLevelDTO>();
+		for(Map.Entry<Double, OrderBookLevel> e : bidLevels.entrySet()) {
+			bidDTOs.add(new OrderBookLevelDTO(e.getKey(), e.getValue().getVolume()));
+		}
+		for(Map.Entry<Double, OrderBookLevel> e : askLevels.entrySet()) {
+			askDTOs.add(new OrderBookLevelDTO(e.getKey(), e.getValue().getVolume()));
+		}
+		
+		return new OrderBookDTO(symbol, bidDTOs, askDTOs);
 	}
 }

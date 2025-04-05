@@ -1,5 +1,11 @@
 package org.louisjohns32.personal.exchange.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.louisjohns32.personal.exchange.constants.Side;
+import org.louisjohns32.personal.exchange.entities.Order;
+import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -18,6 +24,20 @@ public class InitialDataLoader {
 			orderBookService.createOrderBook("NVDA");
 			orderBookService.createOrderBook("AMZN");
 			orderBookService.createOrderBook("GOOG");
+			
+			OrderBook amazonOB = new OrderBook("AMZN");
+			List<Order> orders = new ArrayList<Order>();
+			orders.add(new Order(0, Side.BUY, 2, 192.17));
+			orders.add(new Order(0, Side.BUY, 3, 192.17));
+			orders.add(new Order(0, Side.BUY, 1, 192.17));
+			orders.add(new Order(0, Side.BUY, 20, 192.16));
+			orders.add(new Order(0, Side.SELL, 21, 192.20));
+			orders.add(new Order(0, Side.SELL, 30, 192.20));
+			orders.add(new Order(0, Side.SELL, 10, 192.21));
+			
+			for(Order order : orders) {
+				orderBookService.createOrder(amazonOB, order);
+			}
 		};
 	}
 

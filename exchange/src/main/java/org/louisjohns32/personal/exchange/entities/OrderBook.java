@@ -84,6 +84,14 @@ public class OrderBook {
 		orderMap.remove(order.getId());
 		if(level.isEmpty()) removeLevel(level);
 	}
+	
+	public Map<Double, OrderBookLevel> getBidLevels() {
+		return bidLevels;
+	}
+	
+	public Map<Double, OrderBookLevel> getAskLevels() {
+		return askLevels;
+	}
 
 	
 	private void removeLevel(OrderBookLevel level) {

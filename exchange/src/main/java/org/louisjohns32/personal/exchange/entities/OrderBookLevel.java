@@ -16,11 +16,13 @@ public class OrderBookLevel {
 	private LinkedList<Order> orders;
 	private double price;
 	private Side side;
+	private double volume;
 	// private Map<Double, LinkedListNode> ordersMap; TODO implement own linked list to allow O(1) removal, java.util.LinkedList doesn't expose the node class
 	
 	public OrderBookLevel(double price, Side side) {
 		this.price = price;
 		this.side = side;
+		this.volume = 0;
 		orders = new LinkedList<Order>();
 	}
 	
@@ -36,6 +38,7 @@ public class OrderBookLevel {
 		lock.writeLock().lock();
 		try {
 			orders.addLast(order);	
+			volume += order.getQuantity();
 		} finally {
 			lock.writeLock().unlock();
 		}
@@ -50,9 +53,19 @@ public class OrderBookLevel {
 		}
 	}
 	
+	public double getVolume() {
+		// TODO return this.volume instead of iterating over orders 
+		double volume = 0;
+		for(Order order : orders) {
+			volume += order.getRemainingQuantity();
+		}
+		return volume;
+	}
+	
 	public void removeOrderById(long id) { // O(n), should be optimised in future (easy to do just have to write up linked list class)
 		lock.writeLock().lock();
 		try {
+			// TODO reduce volume 
 			orders.removeIf(order ->(order.getId() == id));
 		} finally {
 			lock.writeLock().unlock();

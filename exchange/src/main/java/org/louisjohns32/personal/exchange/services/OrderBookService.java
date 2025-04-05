@@ -1,11 +1,14 @@
 package org.louisjohns32.personal.exchange.services;
 
+import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 
 public interface OrderBookService {
 	
 	public OrderBook getOrderBook(String symbol);
+	
+	public OrderBookDTO getAggregatedOrderBook(String symbol);
 	
 	public void createOrderBook(String symbol); // idk about storing orderbooks in this service
 	
