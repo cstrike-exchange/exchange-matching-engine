@@ -19,25 +19,23 @@ import jakarta.validation.Validator;
 @Service
 public class OrderBookServiceImpl implements OrderBookService {
 	
-	private static final AtomicLong idGenerator = new AtomicLong(1);
+	private final AtomicLong idGenerator = new AtomicLong(1);
 	
 	@Autowired
 	private Validator validator;
 	
-	private ConcurrentHashMap<String, OrderBook> orderBookMap;
+	@Autowired
+	private OrderBookRegistry registry;
 	
-	public OrderBookServiceImpl() {
-		orderBookMap = new ConcurrentHashMap<String, OrderBook>();
-	}
 	
 	@Override
 	public OrderBook getOrderBook(String symbol) {
-		return orderBookMap.get(symbol);
+		return registry.getOrderBook(symbol);
 	}
 
 	@Override
 	public void createOrderBook(String symbol) {
-		orderBookMap.putIfAbsent(symbol, new OrderBook(symbol));
+		registry.createOrderBook(symbol);
 	}
 	
 	@Override
