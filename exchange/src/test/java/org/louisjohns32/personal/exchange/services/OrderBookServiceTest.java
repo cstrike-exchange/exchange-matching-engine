@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -30,6 +31,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -44,6 +46,9 @@ public class OrderBookServiceTest {
 
     @Mock
     private OrderBook orderBook;
+    
+    @Mock
+    private OrderBookRegistry orderBookRegistry;
 
     @InjectMocks
     @Spy
@@ -65,23 +70,18 @@ public class OrderBookServiceTest {
     		String symbol = "SYMBOL";
     		orderBookService.createOrderBook(symbol);
     		
-    		OrderBook orderBook = orderBookService.getOrderBook(symbol);
-    		
-    		assertEquals(symbol, orderBook.getSymbol());
+    		verify(orderBookRegistry, times(1)).createOrderBook(eq(symbol));
     	}
     	
     	@Test
-    	void createDuplicateOrderBook() {
+    	void getOrderBook() {
     		String symbol = "SYMBOL";
-    		orderBookService.createOrderBook(symbol);
+    		when(orderBookRegistry.getOrderBook(eq(symbol))).thenReturn(orderBook);
     		
-    		OrderBook orderBook = orderBookService.getOrderBook(symbol);
-    		orderBookService.createOrderBook(symbol);
+    		OrderBook resOrderBook = orderBookService.getOrderBook(symbol);
     		
-    		assertEquals(symbol, orderBook.getSymbol());
-    		assertEquals(orderBook, orderBookService.getOrderBook(symbol));
+    		assertEquals(orderBook, resOrderBook);
     	}
-    	
     }
 
     @Nested
