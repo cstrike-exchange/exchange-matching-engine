@@ -311,17 +311,26 @@ public class OrderBookServiceTest {
         }
     }
     
-    // TODO getAggregatedOrderBook tests
     @Nested
     class AggregatedOrderBookTests {
+    	
+    	private OrderBook mockOrderBook;
+    	private final String symbol = "SYMBOL";
+    	
+    	@BeforeEach
+    	void setup() {
+    		mockOrderBook = mock(OrderBook.class);
+    		
+    		when(orderBookRegistry.getOrderBook(eq(symbol))).thenReturn(mockOrderBook);
+    	}
+    	
     	@Test
         void returnsEmptyAggregatedOrderBook() {
-            OrderBook mockOrderBook = mock(OrderBook.class);
             when(mockOrderBook.getBidLevels()).thenReturn(Collections.emptyNavigableMap());
             when(mockOrderBook.getAskLevels()).thenReturn(Collections.emptyNavigableMap());
 
             
-            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("EMPTY");
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook(symbol);
 
             assertNotNull(dto);
             assertTrue(dto.getBidLevels().isEmpty(), "Expected empty bids");
@@ -330,7 +339,6 @@ public class OrderBookServiceTest {
 
         @Test
         void aggregatesOrdersAtSingleBidAndAskLevel() {
-            OrderBook mockOrderBook = mock(OrderBook.class);
 
             OrderBookLevel bidLevel = new OrderBookLevel(100.0, Side.BUY);
             bidLevel.addOrder(new Order(1, Side.BUY, 5.0, 100.0));
@@ -343,7 +351,7 @@ public class OrderBookServiceTest {
 
             when(orderBookService.getOrderBook("SINGLE")).thenReturn(mockOrderBook);
 
-            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("SINGLE");
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook(symbol);
 
             assertEquals(1, dto.getBidLevels().size());
             assertEquals(1, dto.getAskLevels().size());
@@ -357,7 +365,6 @@ public class OrderBookServiceTest {
 
         @Test
         void aggregatesMultipleOrdersAtSameLevel() {
-            OrderBook mockOrderBook = mock(OrderBook.class);
 
             OrderBookLevel bidLevel = new OrderBookLevel(100.0, Side.BUY);
             bidLevel.addOrder(new Order(1, Side.BUY, 5.0, 100.0));
@@ -368,7 +375,7 @@ public class OrderBookServiceTest {
 
             when(orderBookService.getOrderBook("MULTI")).thenReturn(mockOrderBook);
 
-            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("MULTI");
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook(symbol);
 
             assertEquals(1, dto.getBidLevels().size());
             assertEquals(15.0, dto.getBidLevels().get(0).getVolume());
@@ -376,7 +383,6 @@ public class OrderBookServiceTest {
 
         @Test
         void aggregatesOrdersAcrossMultipleLevels() {
-            OrderBook mockOrderBook = mock(OrderBook.class);
 
             OrderBookLevel bidLevel1 = new OrderBookLevel(101.0, Side.BUY);
             bidLevel1.addOrder(new Order(1, Side.BUY, 5.0, 101.0));
@@ -401,7 +407,7 @@ public class OrderBookServiceTest {
 
             when(orderBookService.getOrderBook("FULL")).thenReturn(mockOrderBook);
 
-            OrderBookDTO dto = orderBookService.getAggregatedOrderBook("FULL");
+            OrderBookDTO dto = orderBookService.getAggregatedOrderBook(symbol);
 
             assertEquals(2, dto.getBidLevels().size());
             assertEquals(2, dto.getAskLevels().size());

@@ -1,6 +1,7 @@
 package org.louisjohns32.personal.exchange.services;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -111,14 +112,18 @@ public class OrderBookServiceImpl implements OrderBookService {
 		Map<Double, OrderBookLevel> askLevels = orderBook.getAskLevels();
 		Map<Double, OrderBookLevel> bidLevels = orderBook.getBidLevels();
 		
+		
+		
 		List<OrderBookLevelDTO> bidDTOs = new ArrayList<OrderBookLevelDTO>();
 		List<OrderBookLevelDTO> askDTOs = new ArrayList<OrderBookLevelDTO>();
 		for(Map.Entry<Double, OrderBookLevel> e : bidLevels.entrySet()) {
-			bidDTOs.add(new OrderBookLevelDTO(e.getKey(), e.getValue().getVolume()));
+			bidDTOs.add(new OrderBookLevelDTO(e.getKey(), e.getValue().getVolume())); 
 		}
 		for(Map.Entry<Double, OrderBookLevel> e : askLevels.entrySet()) {
 			askDTOs.add(new OrderBookLevelDTO(e.getKey(), e.getValue().getVolume()));
 		}
+		
+		Collections.reverse(bidDTOs); // could be optimised (change bid map to be descending? )
 		
 		return new OrderBookDTO(symbol, bidDTOs, askDTOs);
 	}
