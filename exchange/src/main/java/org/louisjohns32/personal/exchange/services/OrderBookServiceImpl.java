@@ -106,7 +106,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 
 	@Override
 	public OrderBookDTO getAggregatedOrderBook(String symbol) {
-		OrderBook orderBook = orderBookMap.get(symbol);
+		OrderBook orderBook = registry.getOrderBook(symbol);
 		
 		Map<Double, OrderBookLevel> askLevels = orderBook.getAskLevels();
 		Map<Double, OrderBookLevel> bidLevels = orderBook.getBidLevels();
