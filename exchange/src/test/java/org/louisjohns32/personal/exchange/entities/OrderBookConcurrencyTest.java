@@ -159,4 +159,43 @@ public class OrderBookConcurrencyTest {
         assertThat(orderBook.getLevel(101, Side.BUY)).isNull();
         assertThat(orderBook.getLevel(102, Side.BUY)).isNull();
     }
+    
+    @Test
+    public void repeatedly_removeAndAddOrderToSameLevelConcurrently() throws InterruptedException, ExecutionException {
+        int iterations = 100;
+        double price = 100.0;
+        ExecutorService executorService = Executors.newFixedThreadPool(2); 
+
+        for (int i = 0; i < iterations; i++) {
+            int originalOrderId = i * 2 + 1;
+            int newOrderId = i * 2 + 2;
+
+            Order originalOrder = new Order(originalOrderId, Side.BUY, 1.0, price);
+            Order newOrder = new Order(newOrderId, Side.BUY, 1.0, price);
+
+            orderBook.addOrder(originalOrder);
+            Future<?> removeFuture = executorService.submit(() -> {
+                sleepWithRandomDelay();
+                orderBook.removeOrder(originalOrder);
+            });
+
+            Future<?> addFuture = executorService.submit(() -> {
+                sleepWithRandomDelay();
+                orderBook.addOrder(newOrder);
+            });
+
+            removeFuture.get();
+            addFuture.get();
+
+            OrderBookLevel level = orderBook.getLevel(price, Side.BUY);
+            assertThat(level).isNotNull();
+            assertThat(level.getOrders())
+                .allMatch(order -> order.getId() == newOrderId)
+                .hasSize(1);
+            orderBook.removeOrder(newOrder);
+        }
+
+        executorService.shutdown();
+    }
+
 }
