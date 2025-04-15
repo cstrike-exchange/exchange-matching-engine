@@ -25,7 +25,7 @@ public class InitialDataLoader {
 			orderBookService.createOrderBook("AMZN");
 			orderBookService.createOrderBook("GOOG");
 			
-			OrderBook amazonOB = new OrderBook("AMZN");
+			OrderBook amazonOB = orderBookService.getOrderBook("AMZN");
 			List<Order> orders = new ArrayList<Order>();
 			orders.add(new Order(0, Side.BUY, 2, 192.17));
 			orders.add(new Order(0, Side.BUY, 3, 192.17));

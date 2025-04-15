@@ -20,7 +20,7 @@ public class OrderBookApiController {
 	@Autowired
 	private OrderBookModelAssembler orderBookAssembler;
 	
-	@GetMapping("/{symbol}/orderbook")
+	@GetMapping("/orderbook/{symbol}")
 	public OrderBookDTO getOrderBook(@PathVariable String symbol) {
 		return orderBookService.getAggregatedOrderBook(symbol);
 	}
