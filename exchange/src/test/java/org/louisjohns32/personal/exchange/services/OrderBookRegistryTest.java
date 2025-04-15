@@ -3,8 +3,8 @@ package org.louisjohns32.personal.exchange.services;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -12,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
+import org.louisjohns32.personal.exchange.exceptions.OrderBookNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class OrderBookRegistryTest {
@@ -51,8 +52,8 @@ public class OrderBookRegistryTest {
     }
 
     @Test
-    void testGetOrderBook_returnsNullIfNotExists() {
-        assertNull(registry.getOrderBook("NONEXISTENT"));
+    void testGetOrderBook_throwsExceptionIfNotExists() {
+        assertThrows(OrderBookNotFoundException.class, () -> registry.getOrderBook("NONEXISTENT"));
     }
 
     @Test

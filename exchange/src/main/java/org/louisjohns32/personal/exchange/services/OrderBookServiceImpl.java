@@ -127,4 +127,10 @@ public class OrderBookServiceImpl implements OrderBookService {
 		
 		return new OrderBookDTO(symbol, bidDTOs, askDTOs);
 	}
+
+	@Override
+	public Order createOrder(String symbol, Order order) {
+		OrderBook ob = registry.getOrderBook(symbol);
+		return createOrder(ob, order);
+	}
 }

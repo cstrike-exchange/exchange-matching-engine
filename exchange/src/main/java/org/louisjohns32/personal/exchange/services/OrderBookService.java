@@ -13,6 +13,8 @@ public interface OrderBookService {
 	public void createOrderBook(String symbol); // idk about storing orderbooks in this service
 	
 	public Order createOrder(OrderBook orderBook, Order order);
+	
+	public Order createOrder(String symbol, Order order);
 	 
 	public void deleteOrderById(OrderBook orderBook, long id);
  

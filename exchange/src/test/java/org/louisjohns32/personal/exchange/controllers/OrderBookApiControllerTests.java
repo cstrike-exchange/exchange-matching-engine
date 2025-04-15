@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.louisjohns32.personal.exchange.assemblers.OrderBookModelAssembler;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.dto.OrderBookLevelDTO;
+import org.louisjohns32.personal.exchange.exceptions.OrderBookNotFoundException;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -31,31 +32,53 @@ public class OrderBookApiControllerTests {
 	@MockitoBean
 	private OrderBookService orderBookService;
 	
-	 @Test
-	    public void getOrderBook_returnsCorrectResponse() throws Exception {
-	        String symbol = "SYMB";
+	@Test
+    public void getOrderBookValid() throws Exception {
+        String symbol = "SYMB";
 
-	        OrderBookDTO mockResponse = new OrderBookDTO(
-	            symbol,
-	            List.of(
-	                new OrderBookLevelDTO(192.17, 6.0),
-	                new OrderBookLevelDTO(192.16, 20.0)
-	            ),
-	            List.of(
-	                new OrderBookLevelDTO(192.2, 51.0),
-	                new OrderBookLevelDTO(192.21, 10.0)
-	            )
-	        );
+        OrderBookDTO mockResponse = new OrderBookDTO(
+            symbol,
+            List.of(
+                new OrderBookLevelDTO(192.17, 6.0),
+                new OrderBookLevelDTO(192.16, 20.0)
+            ),
+            List.of(
+                new OrderBookLevelDTO(192.2, 51.0),
+                new OrderBookLevelDTO(192.21, 10.0)
+            )
+        );
 
-	        when(orderBookService.getAggregatedOrderBook(eq(symbol))).thenReturn(mockResponse);
+        when(orderBookService.getAggregatedOrderBook(eq(symbol))).thenReturn(mockResponse);
 
-	        mvc.perform(get("/api/orderbook/{symbol}", symbol))
-	            .andExpect(status().isOk())
-	            .andExpect(jsonPath("$.symbol").value(symbol))
-	            .andExpect(jsonPath("$.bidLevels[0].price").value(192.17))
-	            .andExpect(jsonPath("$.bidLevels[0].volume").value(6.0))
-	            .andExpect(jsonPath("$.askLevels[1].price").value(192.21))
-	            .andExpect(jsonPath("$.askLevels[1].volume").value(10.0));
-	    }
+        mvc.perform(get("/api/orderbook/{symbol}", symbol))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.symbol").value(symbol))
+            .andExpect(jsonPath("$.bidLevels[0].price").value(192.17))
+            .andExpect(jsonPath("$.bidLevels[0].volume").value(6.0))
+            .andExpect(jsonPath("$.askLevels[1].price").value(192.21))
+            .andExpect(jsonPath("$.askLevels[1].volume").value(10.0));
+    }
+	 
+	@Test
+    public void getOrderBookNotFound() throws Exception {
+        String symbol = "SYMB";
+
+        OrderBookDTO mockResponse = new OrderBookDTO(
+            symbol,
+            List.of(
+                new OrderBookLevelDTO(192.17, 6.0),
+                new OrderBookLevelDTO(192.16, 20.0)
+            ),
+            List.of(
+                new OrderBookLevelDTO(192.2, 51.0),
+                new OrderBookLevelDTO(192.21, 10.0)
+            )
+        );
+
+        when(orderBookService.getAggregatedOrderBook(eq(symbol))).thenThrow(OrderBookNotFoundException.class);
+
+        mvc.perform(get("/api/orderbook/{symbol}", symbol))
+            .andExpect(status().isNotFound());
+    }
 	
 }
