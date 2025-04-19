@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.louisjohns32.personal.exchange.entities.OrderBook;
+import org.louisjohns32.personal.exchange.exceptions.OrderBookNotFoundException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,7 +19,7 @@ public class OrderBookRegistryImpl implements OrderBookRegistry {
 
 	@Override
 	public OrderBook getOrderBook(String symbol) {
-		return orderBookMap.get(symbol);
+		return orderBookMap.computeIfAbsent(symbol, s -> {throw new OrderBookNotFoundException(s);});
 	}
 
 	@Override

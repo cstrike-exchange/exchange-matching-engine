@@ -34,10 +34,9 @@ public class OrderBook {
 		OrderBookLevel level;
 		levelLock.writeLock().lock();
 		try {
-			level = getLevel(order.getPrice(), order.getSide());
-			if(level == null) {
-				level = createLevel(order.getPrice(), order.getSide());
-			}
+			level = order.getSide() == Side.BUY
+				    ? bidLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.BUY))
+				    : askLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.SELL));
 		} finally {
 			levelLock.writeLock().unlock();
 		}
@@ -79,10 +78,15 @@ public class OrderBook {
 	}
 	
 	public void removeOrder(Order order) { 
-		OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
-		level.removeOrderById(order.getId());
-		orderMap.remove(order.getId());
-		if(level.isEmpty()) removeLevel(level);
+		levelLock.writeLock().lock();
+		try {
+			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+			level.removeOrderById(order.getId());
+			orderMap.remove(order.getId());
+			if(level.isEmpty()) removeLevel(level);
+		} finally {
+			levelLock.writeLock().unlock();
+		}
 	}
 	
 	public Map<Double, OrderBookLevel> getBidLevels() {
