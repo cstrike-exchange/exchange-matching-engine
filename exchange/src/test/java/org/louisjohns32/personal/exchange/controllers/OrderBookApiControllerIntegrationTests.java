@@ -33,15 +33,18 @@ public class OrderBookApiControllerIntegrationTests {
         String symbol = "AAPL";
         registry.createOrderBook(symbol);
 
-        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 2.0, 150.0));
+        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 1.0, 150.0));
+        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 1.0, 150.0));
+        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 2.0, 149.0));
         orderBookService.createOrder(symbol, new Order(2L, Side.SELL, 1.0, 151.0));
 
         mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.symbol").value(symbol))
-                .andExpect(jsonPath("$.bidLevels", hasSize(1)))
+                .andExpect(jsonPath("$.bidLevels", hasSize(2)))
                 .andExpect(jsonPath("$.askLevels", hasSize(1)))
                 .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
+                .andExpect(jsonPath("$.bidLevels[1].price").value(149.0))
                 .andExpect(jsonPath("$.askLevels[0].price").value(151.0));
     }
     
