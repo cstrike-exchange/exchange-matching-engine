@@ -2,8 +2,8 @@ version: 0.2
 
 phases:
   pre_build:
-    working-directory: exchange
     commands:
+      - cd ./exchange
       - mvn clean install
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
@@ -36,4 +36,4 @@ phases:
 artifacts:
   files:
     - imagedefinitions.json
-    - exchange/target/exchange.jar
+    - target/exchange.jar
