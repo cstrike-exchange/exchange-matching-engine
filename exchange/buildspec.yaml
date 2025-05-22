@@ -3,7 +3,7 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - cd ./exchange
+      - working-directory: exchange
       - mvn clean install
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
