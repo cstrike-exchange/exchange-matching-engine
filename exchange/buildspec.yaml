@@ -2,9 +2,9 @@ version: 0.2
 
 phases:
   pre_build:
-    commands:    
-      - cd ./exchange
+    commands:
       - mvn clean install
+      - echo Logging in to Amazon ECR...
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
       - aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin $REPOSITORY_URI
