@@ -2,8 +2,8 @@ version: 0.2
 
 phases:
   pre_build:
+    working-directory: exchange
     commands:
-      - working-directory: exchange
       - mvn clean install
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
@@ -12,6 +12,7 @@ phases:
       - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
 
   build:
+    working-directory: exchange
     commands:
       - echo Build started on $(date)
       - echo Building the Docker image...
@@ -19,6 +20,7 @@ phases:
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
 
   post_build:
+    working-directory: exchange
     commands:
       - echo Build completed on $(date)
       - echo Pushing the Docker images...
@@ -27,11 +29,11 @@ phases:
       - echo Writing image definitions file...
       - DOCKER_CONTAINER_NAME=louisjohns32/exchange
       - printf '[{"name":"%s","imageUri":"%s"}]' "$DOCKER_CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-      - echo $DOCKER_CONTAINER_NAME
       - echo printing imagedefinitions.json
       - cat imagedefinitions.json
+      - mv imagedefinitions.json ../  
 
 artifacts:
   files:
     - imagedefinitions.json
-    - target/exchange.jar
+    - exchange/target/exchange.jar
