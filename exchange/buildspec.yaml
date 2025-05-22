@@ -30,14 +30,14 @@ phases:
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
       - DOCKER_CONTAINER_NAME=louisjohns32/exchange
-      - printf '[{"name":"%s","imageUri":"%s"}]' "$DOCKER_CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imageDefinitions.json
-      - echo printing imageDefinitions.json
-      - cat imageDefinitions.json
-      - mv imageDefinitions.json ../
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$DOCKER_CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - echo printing imagedefinitions.json
+      - cat imagedefinitions.json
+      - mv imagedefinitions.json ../
       - cp target/exchange.jar ../exchange.jar
       - cd ..
 
 artifacts:
   files:
-    - imageDefinitions.json
+    - imagedefinitions.json
     - exchange.jar
