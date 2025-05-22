@@ -2,9 +2,10 @@ version: 0.2
 
 phases:
   pre_build:
-    working-directory: exchange
     commands:
+      - cd exchange
       - mvn clean install
+      - cd ..
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
       - aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin $REPOSITORY_URI
@@ -12,16 +13,17 @@ phases:
       - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
 
   build:
-    working-directory: exchange
     commands:
+      - cd exchange
       - echo Build started on $(date)
       - echo Building the Docker image...
       - docker build -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+      - cd ..
 
   post_build:
-    working-directory: exchange
     commands:
+      - cd exchange
       - echo Build completed on $(date)
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
@@ -32,7 +34,8 @@ phases:
       - echo printing imagedefinitions.json
       - cat imagedefinitions.json
       - mv imagedefinitions.json ../
-      - cp target/exchange.jar ../exchange.jar  # copy the JAR to root for CodePipeline
+      - cp target/exchange.jar ../exchange.jar
+      - cd ..
 
 artifacts:
   files:
