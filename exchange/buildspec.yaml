@@ -34,7 +34,7 @@ phases:
       - echo printing imagedefinitions.json
       - cat imagedefinitions.json
       - mv imagedefinitions.json ../
-      - cp target/exchange.jar ../exchange.jar
+      - copy target/exchange.jar ../exchange.jar
       - cd ..
 
 artifacts:
