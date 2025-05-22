@@ -3,6 +3,7 @@ version: 0.2
 phases:
   pre_build:
     commands:
+      - cd exchange
       - mvn clean install
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
@@ -12,6 +13,7 @@ phases:
 
   build:
     commands:
+      - cd exchange
       - echo Build started on $(date)
       - echo Building the Docker image...
       - docker build -t $REPOSITORY_URI:latest .
@@ -19,17 +21,17 @@ phases:
 
   post_build:
     commands:
+      - cd exchange
       - echo Build completed on $(date)
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
-      - DOCKER_CONTAINER_NAME=louisjohns32/exchange  # Must match ECS task definition container name
-      - printf '[{"name":"%s","imageUri":"%s"}]' "$DOCKER_CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-      - echo printing imagedefinitions.json
+      - printf '[{"name":"louisjohns32/exchange","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
       - cat imagedefinitions.json
+      - mv imagedefinitions.json ../
 
 artifacts:
   files:
     - imagedefinitions.json
-    - target/exchange.jar
+    - exchange/target/exchange.jar
