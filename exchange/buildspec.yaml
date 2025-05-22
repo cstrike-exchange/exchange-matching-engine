@@ -2,8 +2,8 @@ version: 0.2
 
 phases:
   pre_build:
+    working-directory: exchange
     commands:
-      - cd ./exchange
       - mvn clean install
       - aws --version
       - REPOSITORY_URI=381492089710.dkr.ecr.eu-west-2.amazonaws.com/louisjohns32/exchange
@@ -31,10 +31,10 @@ phases:
       - printf '[{"name":"%s","imageUri":"%s"}]' "$DOCKER_CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
       - echo printing imagedefinitions.json
       - cat imagedefinitions.json
-      - mv imagedefinitions.json ../  
-      - cd ../
+      - mv imagedefinitions.json ../
+      - cp target/exchange.jar ../exchange.jar  # copy the JAR to root for CodePipeline
 
 artifacts:
   files:
     - imagedefinitions.json
-    - target/exchange.jar
+    - exchange.jar
