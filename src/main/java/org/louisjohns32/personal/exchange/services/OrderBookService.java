@@ -10,7 +10,7 @@ public interface OrderBookService {
 	
 	public OrderBookDTO getAggregatedOrderBook(String symbol);
 	
-	public void createOrderBook(String symbol); // idk about storing orderbooks in this service
+	public OrderBook createOrderBook(String symbol); // idk about storing orderbooks in this service
 	
 	public Order createOrder(OrderBook orderBook, Order order);
 	
