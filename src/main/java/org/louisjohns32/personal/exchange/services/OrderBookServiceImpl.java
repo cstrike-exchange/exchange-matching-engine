@@ -39,8 +39,9 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	public void createOrderBook(String symbol) {
+	public OrderBook createOrderBook(String symbol) {
 		registry.createOrderBook(symbol);
+		return registry.getOrderBook(symbol);
 	}
 	
 	@Override
