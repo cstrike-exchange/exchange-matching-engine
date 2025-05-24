@@ -7,7 +7,9 @@ import org.louisjohns32.personal.exchange.assemblers.OrderBookModelAssembler;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.dto.OrderBookRequestDTO;
 import org.louisjohns32.personal.exchange.dto.OrderRequestDTO;
+import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
+import org.louisjohns32.personal.exchange.mappers.OrderMapper;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
@@ -35,6 +37,9 @@ public class OrderBookApiController {
 	@Autowired
 	private OrderBookModelAssembler orderBookAssembler;
 	
+	@Autowired
+	private OrderMapper orderMapper;
+	
 	@GetMapping("/orderbook/{symbol}")
 	public OrderBookDTO getOrderBook(@PathVariable String symbol) {
 		return orderBookService.getAggregatedOrderBook(symbol);
@@ -52,11 +57,10 @@ public class OrderBookApiController {
 			return ResponseEntity.badRequest().body(errors);
 		}
 		
-		/*
-		Order order = orderBookService.createOrder();
-		EntityModel<OrderBook> obEntityModel = orderBookAssembler.toModel(ob);
-		return ResponseEntity.created(obEntityModel.getRequiredLink(IanaLinkRelations.SELF).toUri()).build();
-		*/
+		
+		Order order = orderBookService.createOrder(orderRequest.getSymbol(), orderMapper.toEntity(orderRequest));
+		return ResponseEntity.created(null).build();
+		
 	}
 	
 	
