@@ -54,6 +54,8 @@ public class OrderBookServiceImpl implements OrderBookService {
 		long orderId = idGenerator.getAndIncrement();
 		Order newOrder = new Order(orderId, order);
 		
+		// TODO persist to db asynchronously 
+		
 		orderBook.addOrder(newOrder);
 		
 		match(orderBook, newOrder);

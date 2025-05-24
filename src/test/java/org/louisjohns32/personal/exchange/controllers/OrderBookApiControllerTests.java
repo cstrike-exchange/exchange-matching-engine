@@ -1,6 +1,7 @@
 package org.louisjohns32.personal.exchange.controllers;
 
 import static org.hamcrest.Matchers.endsWith;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,10 +17,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.louisjohns32.personal.exchange.assemblers.OrderBookModelAssembler;
+import org.louisjohns32.personal.exchange.constants.Side;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.dto.OrderBookLevelDTO;
+import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.exceptions.OrderBookNotFoundException;
+import org.louisjohns32.personal.exchange.mappers.OrderMapper;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -31,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(OrderBookApiController.class)
-@Import({ OrderBookModelAssembler.class })
+@Import({ OrderBookModelAssembler.class, OrderMapper.class })
 public class OrderBookApiControllerTests {
 	
 	@Autowired
@@ -88,6 +92,53 @@ public class OrderBookApiControllerTests {
         mvc.perform(get("/api/orderbook/{symbol}", symbol))
             .andExpect(status().isNotFound());
     }
+	
+	@Nested
+	public class CreateOrderTests {
+
+	    @Test
+	    public void createValidOrderCallsService() throws Exception {
+	        String symbol = "SYMB";
+	        
+	        Order mockOrder = new Order(1L, Side.BUY, 10, 100);
+	        
+	        when(orderBookService.createOrder(eq(symbol), any(Order.class)))
+	            .thenReturn(mockOrder);
+	        
+	        String orderRequestJson = "{"
+	                + "\"quantity\": 10,"
+	                + "\"price\": 100,"
+	                + "\"side\": \"BUY\","
+	                + "\"symbol\": \"" + symbol + "\""
+	                + "}";
+	        
+	        mvc.perform(post("/api/orderbook/{symbol}", symbol)
+	                .content(orderRequestJson)
+	                .contentType(MediaType.APPLICATION_JSON))
+	            .andExpect(status().isCreated());
+	        
+	        verify(orderBookService).createOrder(eq(symbol), any(Order.class));
+	    }
+
+	    @Test
+	    public void createOrder_invalidInput_returnsBadRequest() throws Exception {
+	        String symbol = "SYMB";
+
+	        String orderRequestJson = "{"
+	                + "\"quantity\": 10,"
+	                + "\"price\": 0,"   
+	                + "\"side\": \"BUY\","
+	                + "\"symbol\": \"" + symbol + "\""
+	                + "}";
+
+	        mvc.perform(post("/api/orderbook/{symbol}", symbol)
+	                .content(orderRequestJson)
+	                .contentType(MediaType.APPLICATION_JSON))
+	            .andExpect(status().isBadRequest())
+	            .andExpect(jsonPath("$.price").exists()); 
+	    }
+
+	}
 	
 	@Nested
 	public class CreateOrderBookTests {

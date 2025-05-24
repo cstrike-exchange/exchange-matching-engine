@@ -6,7 +6,10 @@ import java.util.stream.Collectors;
 import org.louisjohns32.personal.exchange.assemblers.OrderBookModelAssembler;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.dto.OrderBookRequestDTO;
+import org.louisjohns32.personal.exchange.dto.OrderRequestDTO;
+import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
+import org.louisjohns32.personal.exchange.mappers.OrderMapper;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
@@ -34,10 +37,32 @@ public class OrderBookApiController {
 	@Autowired
 	private OrderBookModelAssembler orderBookAssembler;
 	
+	@Autowired
+	private OrderMapper orderMapper;
+	
 	@GetMapping("/orderbook/{symbol}")
 	public OrderBookDTO getOrderBook(@PathVariable String symbol) {
 		return orderBookService.getAggregatedOrderBook(symbol);
 	}
+	
+	@PostMapping("/orderbook/{symbol}") 
+	public ResponseEntity<?> createOrder(@RequestBody @Valid OrderRequestDTO orderRequest, BindingResult result) {
+		if(result.hasErrors()) {
+			Map<String, String> errors = result.getFieldErrors().stream()
+		            .collect(Collectors.toMap(
+		                FieldError::getField,
+		                FieldError::getDefaultMessage,
+		                (existing, replacement) -> existing
+		            ));
+			return ResponseEntity.badRequest().body(errors);
+		}
+		
+		
+		Order order = orderBookService.createOrder(orderRequest.getSymbol(), orderMapper.toEntity(orderRequest));
+		return ResponseEntity.created(null).build();
+		
+	}
+	
 	
 	@PostMapping("/orderbook")
 	public ResponseEntity<?> createOrderBook(@RequestBody @Valid OrderBookRequestDTO orderBookRequest, BindingResult result) {

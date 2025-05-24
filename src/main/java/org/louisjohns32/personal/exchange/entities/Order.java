@@ -33,6 +33,16 @@ public class Order {
 		this.filledQuantity = 0;
 		this.side = side;
 	}
+	
+	
+	public Order(Side side, @Min(0) double quantity, @Min(0) double price) {
+		super();
+		this.id=0;
+		this.quantity = quantity;
+		this.price = price;
+		this.filledQuantity = 0;
+		this.side = side;
+	}
 
 	
 	public Order(long id, Order order) {
@@ -42,6 +52,8 @@ public class Order {
 		this.filledQuantity = order.getFilledQuantity();
 		this.side = order.getSide();
 	}
+	
+
 	
 	
 	public long getId() {
