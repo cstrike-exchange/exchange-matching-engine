@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack:3
+    container_name: localstack
+    ports:
+      - "4566:4566"  
+    environment:
+      - SERVICES=sns
+      - DEBUG=1
+    volumes:
+      - ./localstack:/etc/localstack/init/ready.d  # optional for auto-setup

@@ -1,5 +1,6 @@
 package org.louisjohns32.personal.exchange.services;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,9 @@ import org.springframework.stereotype.Service;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
@@ -36,14 +40,12 @@ public class OrderBookServiceImpl implements OrderBookService {
 	@Autowired
 	private OrderBookRegistry registry;
 	
-	private final SnsAsyncClient snsClient;
+	@Autowired
+	private SnsAsyncClient snsClient;
 	
 	@Value("${sns_topic_arn}")
     private String snsTopicArn;
 	
-	public OrderBookServiceImpl() {
-		this.snsClient = SnsAsyncClient.create();
-	}
 	
 	private  CompletableFuture<Void> publishEventMessage(String message, String eventType) {
 		PublishRequest request = PublishRequest.builder()
@@ -68,12 +70,13 @@ public class OrderBookServiceImpl implements OrderBookService {
 		            });
 	}
 	
-	private String buildOrderEventMessage(String eventType, Order order) {
+	private String buildOrderEventMessage(String eventType, String symbol,  Order order) {
 		// TODO add sequence number, reduce data transfer (not everything needs to be sent depending on the event type)
 		long sequenceNumber = sequenceGenerator.getAndIncrement();
 	    return "{"
 	    	+ "\"sequenceNumber\":" + sequenceNumber + ","
 	        + "\"eventType\":\"" + eventType + "\","
+	        + "\"symbol\":\"" + symbol + "\","
 	        + "\"orderId\":" + order.getId() + ","
 	        + "\"side\":\"" + order.getSide() + "\","
 	        + "\"price\":" + order.getPrice() + ","
@@ -82,11 +85,12 @@ public class OrderBookServiceImpl implements OrderBookService {
 	        + "}";
 	}
 	
-	private String buildTradeEventMessage(String eventType, Order buyOrder, Order sellOrder, double price, double quantity) {
+	private String buildTradeEventMessage(String eventType, String symbol,  Order buyOrder, Order sellOrder, double price, double quantity) {
 		long sequenceNumber = sequenceGenerator.getAndIncrement();
 		return "{"
 			+ "\"sequenceNumber\":" + sequenceNumber + ","
 			+ "\"eventType\":\""+ eventType + "\","
+			 + "\"symbol\":\"" + symbol + "\","
 			+ "\"timestamp\":" + System.currentTimeMillis() + ","
 			+ "\"buyOrderId\":" + buyOrder.getId() + ","
 			+ "\"sellOrderId\":" + sellOrder.getId() + ","
@@ -121,7 +125,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 		
 		orderBook.addOrder(newOrder);
 		
-		publishEventMessage(buildOrderEventMessage("ORDER_CREATED", newOrder), "ORDER_CREATED"); // TODO event type enum
+		publishEventMessage(buildOrderEventMessage("ORDER_CREATED", orderBook.getSymbol(), newOrder), "ORDER_CREATED"); // TODO event type enum
 		
 		match(orderBook, newOrder);
 		return newOrder;
@@ -132,7 +136,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 		// TODO throw not found exception if no order with id
 		Order order = orderBook.getOrderById(id);
 		orderBook.removeOrder(order);
-		publishEventMessage(buildOrderEventMessage("ORDER_CANCELLED", order), "ORDER_CANCELLED"); // TODO event type enum
+		publishEventMessage(buildOrderEventMessage("ORDER_CANCELLED", orderBook.getSymbol(), order), "ORDER_CANCELLED"); // TODO event type enum
 	}
 
 	@Override
@@ -166,7 +170,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 			fillOrder(orderBook, newOrder, amntToFill);
 			fillOrder(orderBook, opposingOrder, amntToFill);
 			
-			 publishEventMessage(buildTradeEventMessage("TRADE_EXECUTED", (newOrder.getSide()==Side.BUY) ? newOrder : opposingOrder,
+			 publishEventMessage(buildTradeEventMessage("TRADE_EXECUTED", orderBook.getSymbol(), (newOrder.getSide()==Side.BUY) ? newOrder : opposingOrder,
 					 (newOrder.getSide()==Side.SELL) ? newOrder : opposingOrder, opposingOrder.getPrice(), amntToFill), "TRADE_EXECUTED"); // TODO event type enum
 			return true;
 		}
