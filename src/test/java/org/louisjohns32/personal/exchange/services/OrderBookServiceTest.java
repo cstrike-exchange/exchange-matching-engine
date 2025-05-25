@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -18,6 +20,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,17 +32,21 @@ import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -53,16 +60,26 @@ public class OrderBookServiceTest {
     
     @Mock
     private OrderBookRegistry orderBookRegistry;
+    
+    @Mock
+    private SnsAsyncClient snsClient;
 
     @InjectMocks
     @Spy
     private OrderBookServiceImpl orderBookService;
 
+    private String snsTopicArn = "arn";
     private Order bidOrder;
     private Order askOrder;
 
     @BeforeEach
     void setUp() {
+    	 ReflectionTestUtils.setField(orderBookService, "snsTopicArn", snsTopicArn);
+    	 ReflectionTestUtils.setField(orderBookService, "snsClient", snsClient);
+    	 
+    	 when(snsClient.publish(any(PublishRequest.class)))
+         .thenReturn(CompletableFuture.completedFuture(PublishResponse.builder().build()));
+    	
         bidOrder = new Order(1, Side.BUY, 5.0, 100.0); 
         askOrder = new Order(2, Side.SELL, 5.0, 99.0);
     }
@@ -114,6 +131,55 @@ public class OrderBookServiceTest {
             
             verify(orderBookService, never()).match(any(OrderBook.class), any(Order.class));
         }
+        
+        @Test
+        void validOrder_PublishesOrderCreatedEvent() {
+            Order inputOrder = new Order(0, Side.BUY, 100.0, 10.0);
+            when(validator.validate(any(Order.class))).thenReturn(Collections.emptySet());
+            when(orderBook.getLowestAskLevel()).thenReturn(null); // No matching orders
+            
+ 
+            Order result = orderBookService.createOrder(orderBook, inputOrder);
+            
+
+            assertNotNull(result);
+            assertEquals(1L, result.getId()); 
+            verify(orderBook).addOrder(any(Order.class));
+            
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient).publish(publishCaptor.capture());
+            
+            PublishRequest publishedRequest = publishCaptor.getValue();
+            assertTrue(publishedRequest.message().contains("ORDER_CREATED"));
+            assertTrue(publishedRequest.message().contains("\"orderId\":1"));
+            assertTrue(publishedRequest.message().contains("\"sequenceNumber\":1"));
+        }
+        
+        @Test
+        void testSequenceNumbers_AreIncremental() {
+            // Arrange
+            Order order1 = new Order(0, Side.BUY, 100.0, 10.0);
+            Order order2 = new Order(0, Side.SELL, 99.0, 5.0);
+            
+            when(validator.validate(any(Order.class))).thenReturn(Collections.emptySet());
+            when(orderBook.getLowestAskLevel()).thenReturn(null);
+            when(orderBook.getHighestBidLevel()).thenReturn(null);
+            
+            // Act
+            orderBookService.createOrder(orderBook, order1);
+            orderBookService.createOrder(orderBook, order2);
+            
+            // Assert
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient, times(2)).publish(publishCaptor.capture());
+            
+            var messages = publishCaptor.getAllValues().stream()
+                .map(PublishRequest::message)
+                .toList();
+            
+            assertTrue(messages.get(0).contains("\"sequenceNumber\":1"));
+            assertTrue(messages.get(1).contains("\"sequenceNumber\":2"));
+        }
     }
 
     @Nested
@@ -126,6 +192,26 @@ public class OrderBookServiceTest {
             orderBookService.deleteOrderById(orderBook, 1);
 
             verify(orderBook, times(1)).removeOrder(bidOrder);
+        }
+        
+        @Test
+        void publishesOrderCancelledEvent() {
+            // Arrange
+            Order existingOrder = new Order(1L, Side.BUY, 100.0, 10.0);
+            when(orderBook.getOrderById(1L)).thenReturn(existingOrder);
+            
+            // Act
+            orderBookService.deleteOrderById(orderBook, 1L);
+            
+            // Assert
+            verify(orderBook).removeOrder(existingOrder);
+            
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient).publish(publishCaptor.capture());
+            
+            PublishRequest publishedRequest = publishCaptor.getValue();
+            assertTrue(publishedRequest.message().contains("ORDER_CANCELLED"));
+            assertTrue(publishedRequest.message().contains("\"orderId\":1"));
         }
     }
 
@@ -177,6 +263,18 @@ public class OrderBookServiceTest {
             assertEquals(0.0, bidOrder.getRemainingQuantity());
             verify(orderBook).removeOrder(askOrder);
             verify(orderBook).removeOrder(bidOrder);
+            
+         // Verify trade event was published
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient, atLeastOnce()).publish(publishCaptor.capture());
+            
+            boolean tradeEventPublished = publishCaptor.getAllValues().stream()
+                .anyMatch(req -> req.message().contains("TRADE_EXECUTED") && 
+                               req.message().contains("\"buyOrderId\":" + bidOrder.getId()) &&
+                               req.message().contains("\"sellOrderId\":" + askOrder.getId()) &&
+                               req.message().contains("\"quantity\":" + Math.min(bidOrder.getQuantity(), askOrder.getQuantity())));
+            
+            assertTrue(tradeEventPublished, "Trade event should be published");
         }
         
         @Test
@@ -199,6 +297,18 @@ public class OrderBookServiceTest {
             assertEquals(0.0, bidOrder.getRemainingQuantity());
             verify(orderBook).removeOrder(askOrder);
             verify(orderBook).removeOrder(bidOrder);
+            
+            // Verify trade event was published
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient, atLeastOnce()).publish(publishCaptor.capture());
+            
+            boolean tradeEventPublished = publishCaptor.getAllValues().stream()
+                .anyMatch(req -> req.message().contains("TRADE_EXECUTED") && 
+                               req.message().contains("\"buyOrderId\":" + bidOrder.getId()) &&
+                               req.message().contains("\"sellOrderId\":" + askOrder.getId()) &&
+                               req.message().contains("\"quantity\":5.0"));
+            
+            assertTrue(tradeEventPublished, "Trade event should be published");
         }
 
         @Test
@@ -221,6 +331,7 @@ public class OrderBookServiceTest {
             assertEquals(5.0, askOrder.getRemainingQuantity());
             assertEquals(5.0, bidOrder.getRemainingQuantity());
             verify(orderBook, never()).removeOrder(any());
+            verify(snsClient, never()).publish(ArgumentCaptor.forClass(PublishRequest.class).capture());
         }
         
         @Test
@@ -251,6 +362,18 @@ public class OrderBookServiceTest {
             verify(orderBook, times(1)).removeOrder(askOrder);
 
             assertNull(orderBook.getLowestAskLevel(), "Expected lowest ask level to be null after removal.");
+            
+            // Verify trade event was published with correct quantity
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient, atLeastOnce()).publish(publishCaptor.capture());
+            
+            boolean tradeEventPublished = publishCaptor.getAllValues().stream()
+                .anyMatch(req -> req.message().contains("TRADE_EXECUTED") && 
+                               req.message().contains("\"buyOrderId\":" + bidOrder.getId()) &&
+                               req.message().contains("\"sellOrderId\":" + askOrder.getId()) &&
+                               req.message().contains("\"quantity\":3.0")); // Should match the smaller quantity
+            
+            assertTrue(tradeEventPublished, "Trade event should be published with correct quantity");
         }
         
         @Test
@@ -308,7 +431,33 @@ public class OrderBookServiceTest {
             verify(orderBook, times(1)).removeOrder(smallAsk2);
             verify(orderBook, times(1)).removeOrder(smallAsk3);
             verify(orderBook, never()).removeOrder(ask4);
+            
+            // Verify 3 trade events were published (one for each executed trade)
+            ArgumentCaptor<PublishRequest> publishCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+            verify(snsClient, atLeast(3)).publish(publishCaptor.capture());
+            
+            var tradeEvents = publishCaptor.getAllValues().stream()
+                .filter(req -> req.message().contains("TRADE_EXECUTED"))
+                .map(PublishRequest::message)
+                .toList();
+            
+            assertEquals(3, tradeEvents.size(), "Should have published 3 trade events");
+            
+            // Verify each trade event has correct details
+            assertTrue(tradeEvents.stream().anyMatch(msg -> 
+                msg.contains("\"sellOrderId\":" + smallAsk3.getId()) && msg.contains("\"quantity\":1.0")),
+                "Should have trade event for smallAsk3");
+                
+            assertTrue(tradeEvents.stream().anyMatch(msg -> 
+                msg.contains("\"sellOrderId\":" + smallAsk1.getId()) && msg.contains("\"quantity\":3.0")),
+                "Should have trade event for smallAsk1");
+                
+            assertTrue(tradeEvents.stream().anyMatch(msg -> 
+                msg.contains("\"sellOrderId\":" + smallAsk2.getId()) && msg.contains("\"quantity\":6.0")),
+                "Should have trade event for smallAsk2");
         }
+
+        
     }
     
     @Nested

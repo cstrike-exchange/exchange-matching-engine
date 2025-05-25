@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.louisjohns32.personal.exchange.constants.Side;
@@ -15,22 +15,85 @@ import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.entities.OrderBookLevel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 @Service
 public class OrderBookServiceImpl implements OrderBookService {
 	
 	private final AtomicLong idGenerator = new AtomicLong(1);
+	private final AtomicLong sequenceGenerator = new AtomicLong(1);
 	
 	@Autowired
 	private Validator validator;
 	
 	@Autowired
 	private OrderBookRegistry registry;
+	
+	private final SnsAsyncClient snsClient;
+	
+	@Value("${sns_topic_arn}")
+    private String snsTopicArn;
+	
+	public OrderBookServiceImpl() {
+		this.snsClient = SnsAsyncClient.create();
+	}
+	
+	private  CompletableFuture<Void> publishEventMessage(String message, String eventType) {
+		PublishRequest request = PublishRequest.builder()
+		        .topicArn(snsTopicArn)
+		        .message(message)
+		        .messageAttributes(Map.of(
+		            "eventType", software.amazon.awssdk.services.sns.model.MessageAttributeValue.builder()
+		                            .dataType("String")
+		                            .stringValue(eventType)
+		                            .build()
+		        ))
+		        .build();
+
+		    return snsClient.publish(request)
+		            .thenAccept(response -> {
+		                System.out.println("Published SNS event: " + eventType);
+		            })
+		            .exceptionally(e -> {
+		                // TODO Handle publishing failure, e.g. log, retry, alert
+		                System.err.println("Failed to publish SNS event: " + e.getMessage());
+		                return null;
+		            });
+	}
+	
+	private String buildOrderEventMessage(String eventType, Order order) {
+		// TODO add sequence number, reduce data transfer (not everything needs to be sent depending on the event type)
+		long sequenceNumber = sequenceGenerator.getAndIncrement();
+	    return "{"
+	    	+ "\"sequenceNumber\":" + sequenceNumber + ","
+	        + "\"eventType\":\"" + eventType + "\","
+	        + "\"orderId\":" + order.getId() + ","
+	        + "\"side\":\"" + order.getSide() + "\","
+	        + "\"price\":" + order.getPrice() + ","
+	        + "\"quantity\":" + order.getQuantity() + ","
+	        + "\"filledQuantity\":" + order.getFilledQuantity()
+	        + "}";
+	}
+	
+	private String buildTradeEventMessage(String eventType, Order buyOrder, Order sellOrder, double price, double quantity) {
+		long sequenceNumber = sequenceGenerator.getAndIncrement();
+		return "{"
+			+ "\"sequenceNumber\":" + sequenceNumber + ","
+			+ "\"eventType\":\""+ eventType + "\","
+			+ "\"timestamp\":" + System.currentTimeMillis() + ","
+			+ "\"buyOrderId\":" + buyOrder.getId() + ","
+			+ "\"sellOrderId\":" + sellOrder.getId() + ","
+			+ "\"price\":" + price + ","
+			+ "\"quantity\":" + quantity
+			+ "}";
+	}
 	
 	
 	@Override
@@ -54,9 +117,11 @@ public class OrderBookServiceImpl implements OrderBookService {
 		long orderId = idGenerator.getAndIncrement();
 		Order newOrder = new Order(orderId, order);
 		
-		// TODO persist to db asynchronously 
+		
 		
 		orderBook.addOrder(newOrder);
+		
+		publishEventMessage(buildOrderEventMessage("ORDER_CREATED", newOrder), "ORDER_CREATED"); // TODO event type enum
 		
 		match(orderBook, newOrder);
 		return newOrder;
@@ -67,6 +132,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 		// TODO throw not found exception if no order with id
 		Order order = orderBook.getOrderById(id);
 		orderBook.removeOrder(order);
+		publishEventMessage(buildOrderEventMessage("ORDER_CANCELLED", order), "ORDER_CANCELLED"); // TODO event type enum
 	}
 
 	@Override
@@ -74,8 +140,9 @@ public class OrderBookServiceImpl implements OrderBookService {
 		order.fill(amnt);
 		double amntLeft = order.getRemainingQuantity();
 		if(amntLeft == 0) {
-			deleteOrderById(orderBook, order.getId());
+			orderBook.removeOrder(order);
 		}
+		
 		return amntLeft;
 	}
 	
@@ -98,6 +165,9 @@ public class OrderBookServiceImpl implements OrderBookService {
 			// TODO set newOrder filled price
 			fillOrder(orderBook, newOrder, amntToFill);
 			fillOrder(orderBook, opposingOrder, amntToFill);
+			
+			 publishEventMessage(buildTradeEventMessage("TRADE_EXECUTED", (newOrder.getSide()==Side.BUY) ? newOrder : opposingOrder,
+					 (newOrder.getSide()==Side.SELL) ? newOrder : opposingOrder, opposingOrder.getPrice(), amntToFill), "TRADE_EXECUTED"); // TODO event type enum
 			return true;
 		}
 		return false;
