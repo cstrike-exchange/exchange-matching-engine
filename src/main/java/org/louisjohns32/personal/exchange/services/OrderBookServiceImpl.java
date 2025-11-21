@@ -28,6 +28,10 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
+/**
+ * Service handling order book operations and matching engine logic.
+ * Implements price-time priority matching and publishes lifecycle events to AWS SNS.
+ */
 @Service
 public class OrderBookServiceImpl implements OrderBookService {
 	
@@ -64,14 +68,13 @@ public class OrderBookServiceImpl implements OrderBookService {
 		                System.out.println("Published SNS event: " + eventType);
 		            })
 		            .exceptionally(e -> {
-		                // TODO Handle publishing failure, e.g. log, retry, alert
+		                // FUTURE: Add retry logic and alerting for publishing failures
 		                System.err.println("Failed to publish SNS event: " + e.getMessage());
 		                return null;
 		            });
 	}
 	
 	private String buildOrderEventMessage(String eventType, String symbol,  Order order) {
-		// TODO add sequence number, reduce data transfer (not everything needs to be sent depending on the event type)
 		long sequenceNumber = sequenceGenerator.getAndIncrement();
 	    return "{"
 	    	+ "\"sequenceNumber\":" + sequenceNumber + ","
@@ -125,7 +128,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 		
 		orderBook.addOrder(newOrder);
 		
-		publishEventMessage(buildOrderEventMessage("ORDER_CREATED", orderBook.getSymbol(), newOrder), "ORDER_CREATED"); // TODO event type enum
+		publishEventMessage(buildOrderEventMessage("ORDER_CREATED", orderBook.getSymbol(), newOrder), "ORDER_CREATED");
 		
 		match(orderBook, newOrder);
 		return newOrder;
@@ -133,10 +136,10 @@ public class OrderBookServiceImpl implements OrderBookService {
 
 	@Override
 	public void deleteOrderById(OrderBook orderBook, long id) {
-		// TODO throw not found exception if no order with id
+		// FUTURE: Add validation for order existence
 		Order order = orderBook.getOrderById(id);
 		orderBook.removeOrder(order);
-		publishEventMessage(buildOrderEventMessage("ORDER_CANCELLED", orderBook.getSymbol(), order), "ORDER_CANCELLED"); // TODO event type enum
+		publishEventMessage(buildOrderEventMessage("ORDER_CANCELLED", orderBook.getSymbol(), order), "ORDER_CANCELLED");
 	}
 
 	@Override
@@ -166,12 +169,12 @@ public class OrderBookServiceImpl implements OrderBookService {
 		) {
 			Order opposingOrder = opposingLevel.getOrder();
 			double amntToFill = Math.min(opposingOrder.getRemainingQuantity(), newOrder.getRemainingQuantity());
-			// TODO set newOrder filled price
+			// FUTURE: Track fill price per order (currently uses opposing order price)
 			fillOrder(orderBook, newOrder, amntToFill);
 			fillOrder(orderBook, opposingOrder, amntToFill);
 			
 			 publishEventMessage(buildTradeEventMessage("TRADE_EXECUTED", orderBook.getSymbol(), (newOrder.getSide()==Side.BUY) ? newOrder : opposingOrder,
-					 (newOrder.getSide()==Side.SELL) ? newOrder : opposingOrder, opposingOrder.getPrice(), amntToFill), "TRADE_EXECUTED"); // TODO event type enum
+					 (newOrder.getSide()==Side.SELL) ? newOrder : opposingOrder, opposingOrder.getPrice(), amntToFill), "TRADE_EXECUTED");
 			return true;
 		}
 		return false;

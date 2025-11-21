@@ -8,6 +8,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.louisjohns32.personal.exchange.constants.Side;
 
+/**
+ * Thread-safe order book maintaining bid and ask price levels.
+ * Uses ConcurrentSkipListMap for sorted price levels and 
+ * ConcurrentHashMap for O(1) order lookup by ID.
+ */
 public class OrderBook {
 	
 	private final ReentrantReadWriteLock levelLock = new ReentrantReadWriteLock();

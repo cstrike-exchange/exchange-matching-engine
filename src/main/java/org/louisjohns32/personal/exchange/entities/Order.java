@@ -79,7 +79,7 @@ public class Order {
 	
 	public void fill(double amnt) {
 		if(amnt > getRemainingQuantity()) {
-			throw new IllegalArgumentException(); // TODO throw cstom exception
+			throw new IllegalArgumentException("Fill amount exceeds remaining quantity");
 		}
 		filledQuantity += amnt;
 	}

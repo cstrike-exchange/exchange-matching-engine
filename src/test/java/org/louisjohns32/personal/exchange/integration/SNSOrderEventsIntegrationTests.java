@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.louisjohns32.personal.exchange.constants.Side;
@@ -47,6 +48,7 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SetQueueAttributesRequest;
 
+//@Disabled("Requires Docker")
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("integration")
@@ -176,8 +178,7 @@ public class SNSOrderEventsIntegrationTests {
             .build());
 
 
-        // TODO make call to rest endpoint instead of service 
-        Order order = new Order(Side.BUY, 1.0, 100.0); 
+        Order order = new Order(Side.BUY, 1.0, 100.0);
         orderBookService.createOrderBook("BTCUSD");
         orderBookService.createOrder("BTCUSD", order);
         

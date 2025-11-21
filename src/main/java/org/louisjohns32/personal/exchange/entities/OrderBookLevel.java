@@ -7,6 +7,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.louisjohns32.personal.exchange.constants.Side;
 
+/**
+ * Represents a single price level in the order book.
+ * Maintains FIFO queue of orders at the same price using LinkedList.
+ * Thread-safe using ReentrantReadWriteLock.
+ */
 public class OrderBookLevel {
 	
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -17,7 +22,7 @@ public class OrderBookLevel {
 	private double price;
 	private Side side;
 	private double volume;
-	// private Map<Double, LinkedListNode> ordersMap; TODO implement own linked list to allow O(1) removal, java.util.LinkedList doesn't expose the node class
+	// FUTURE: Implement custom linked list for O(1) removal (currently O(n))
 	
 	public OrderBookLevel(double price, Side side) {
 		this.price = price;
@@ -54,7 +59,7 @@ public class OrderBookLevel {
 	}
 	
 	public double getVolume() {
-		// TODO return this.volume instead of iterating over orders 
+		// FUTURE: Cache volume instead of recomputing (requires tracking partial fills)
 		double volume = 0;
 		for(Order order : orders) {
 			volume += order.getRemainingQuantity();
@@ -62,10 +67,9 @@ public class OrderBookLevel {
 		return volume;
 	}
 	
-	public void removeOrderById(long id) { // O(n), should be optimised in future (easy to do just have to write up linked list class)
+	public void removeOrderById(long id) { // O(n), could be optimized with custom LinkedList
 		lock.writeLock().lock();
 		try {
-			// TODO reduce volume 
 			orders.removeIf(order ->(order.getId() == id));
 		} finally {
 			lock.writeLock().unlock();
