@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile("!integration")
+@Profile("!test")
 public class InitialDataLoader {
 	
 	@Autowired
@@ -29,13 +29,13 @@ public class InitialDataLoader {
 			
 			OrderBook amazonOB = orderBookService.getOrderBook("AMZN");
 			List<Order> orders = new ArrayList<Order>();
-			orders.add(new Order(0, Side.BUY, 2, 192.17));
-			orders.add(new Order(0, Side.BUY, 3, 192.17));
-			orders.add(new Order(0, Side.BUY, 1, 192.17));
-			orders.add(new Order(0, Side.BUY, 20, 192.16));
-			orders.add(new Order(0, Side.SELL, 21, 192.20));
-			orders.add(new Order(0, Side.SELL, 30, 192.20));
-			orders.add(new Order(0, Side.SELL, 10, 192.21));
+			orders.add(new Order("AMZN", Side.BUY, 2., 192.17));
+			orders.add(new Order("AMZN", Side.BUY, 3., 192.17));
+			orders.add(new Order("AMZN", Side.BUY, 1., 192.17));
+			orders.add(new Order("AMZN", Side.BUY, 20., 192.16));
+			orders.add(new Order("AMZN", Side.SELL, 21., 192.20));
+			orders.add(new Order("AMZN", Side.SELL, 30., 192.20));
+			orders.add(new Order("AMZN", Side.SELL, 10., 192.21));
 			
 			for(Order order : orders) {
 				orderBookService.createOrder(amazonOB, order);

@@ -3,6 +3,9 @@ package org.louisjohns32.personal.exchange.services;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
+import org.louisjohns32.personal.exchange.entities.Trade;
+
+import java.util.List;
 
 public interface OrderBookService {
 	
@@ -10,7 +13,7 @@ public interface OrderBookService {
 	
 	public OrderBookDTO getAggregatedOrderBook(String symbol);
 	
-	public OrderBook createOrderBook(String symbol); // idk about storing orderbooks in this service
+	public OrderBook createOrderBook(String symbol);
 	
 	public Order createOrder(OrderBook orderBook, Order order);
 	
@@ -20,13 +23,6 @@ public interface OrderBookService {
  
 	public double fillOrder(OrderBook orderBook, Order order, double amnt); 
  
-	public void match(OrderBook orderBook, Order newOrder);
-	 
-	 
-	 
-	// create order
-	
-	// match ?
-	
-	// how to do matching engine?
+	public List<Trade> match(OrderBook orderBook, Order newOrder);
+
 }

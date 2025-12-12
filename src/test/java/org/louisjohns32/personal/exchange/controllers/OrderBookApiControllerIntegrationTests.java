@@ -2,23 +2,33 @@ package org.louisjohns32.personal.exchange.controllers;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.louisjohns32.personal.exchange.constants.Side;
+import org.louisjohns32.personal.exchange.dao.OrderRepository;
+import org.louisjohns32.personal.exchange.dao.TradeRepository;
 import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.services.OrderBookRegistry;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class OrderBookApiControllerIntegrationTests {
 
     @Autowired
@@ -26,40 +36,165 @@ public class OrderBookApiControllerIntegrationTests {
 
     @Autowired
     private OrderBookService orderBookService;
-    
+
     @Autowired
     private OrderBookRegistry registry;
-    
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private TradeRepository tradeRepository;
+
     @BeforeEach
     void setUp() {
-    	 ReflectionTestUtils.setField(orderBookService, "snsTopicArn", "arn");
+        orderRepository.deleteAll();
+        tradeRepository.deleteAll();
     }
 
-    @Test
-    public void getOrderBook_returnsCorrectLevels() throws Exception {
-        String symbol = "AAPL";
-        registry.createOrderBook(symbol);
+    @Nested
+    class GetOrderBookTests {
+        @Test
+        void getOrderBook_returnsCorrectLevels() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
 
-        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 1.0, 150.0));
-        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 1.0, 150.0));
-        orderBookService.createOrder(symbol, new Order(1L, Side.BUY, 2.0, 149.0));
-        orderBookService.createOrder(symbol, new Order(2L, Side.SELL, 1.0, 151.0));
+            // Create orders
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.BUY, 1.0, 150.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.BUY, 1.0, 150.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.BUY, 2.0, 149.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 1.0, 151.0));
 
-        mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.symbol").value(symbol))
-                .andExpect(jsonPath("$.bidLevels", hasSize(2)))
-                .andExpect(jsonPath("$.askLevels", hasSize(1)))
-                .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
-                .andExpect(jsonPath("$.bidLevels[1].price").value(149.0))
-                .andExpect(jsonPath("$.askLevels[0].price").value(151.0));
+            // Verify order book structure
+            mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.symbol").value(symbol))
+                    .andExpect(jsonPath("$.bidLevels", hasSize(2)))
+                    .andExpect(jsonPath("$.askLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
+                    .andExpect(jsonPath("$.bidLevels[0].volume").value(2.0))
+                    .andExpect(jsonPath("$.bidLevels[1].price").value(149.0))
+                    .andExpect(jsonPath("$.bidLevels[1].volume").value(2.0))
+                    .andExpect(jsonPath("$.askLevels[0].price").value(151.0))
+                    .andExpect(jsonPath("$.askLevels[0].volume").value(1.0));
+        }
+
+        @Test
+        void getOrderBook_orderBookNotFound() throws Exception {
+            String symbol = "NONEXISTENT";
+
+            mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void getOrderBook_emptyOrderBook() throws Exception {
+            String symbol = "EMPTY";
+            registry.createOrderBook(symbol);
+
+            mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.symbol").value(symbol))
+                    .andExpect(jsonPath("$.bidLevels", hasSize(0)))
+                    .andExpect(jsonPath("$.askLevels", hasSize(0)));
+        }
     }
-    
-    @Test
-    public void getOrderBook_orderBookNotFound() throws Exception {
-        String symbol = "SYMBOL";
 
-        mockMvc.perform(get("/api/orderbook/{symbol}", symbol))
-                .andExpect(status().isNotFound());
+    @Nested
+    class OrderPersistenceTests {
+        @Test
+        void orderIsSavedToDatabase() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            // Create order
+            Order createdOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
+            );
+
+            // Verify it's in database
+            Order dbOrder = orderRepository.findById(createdOrder.getId())
+                    .orElseThrow(() -> new AssertionError("Order not found in database"));
+
+            assert dbOrder.getSymbol().equals("AAPL");
+            assert dbOrder.getSide() == Side.BUY;
+            assert dbOrder.getQuantity().equals(100.0);
+            assert dbOrder.getPrice().equals(150.0);
+        }
+
+        @Test
+        void tradeIsSavedToDatabase() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            // Create matching orders
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.BUY, 50.0, 150.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 50.0, 150.0));
+
+            // Verify trade was saved
+            var trades = tradeRepository.findAll();
+            assert trades.size() == 1;
+            assert trades.get(0).getQuantity().equals(50.0);
+            assert trades.get(0).getPrice().equals(150.0);
+        }
+
+        @Test
+        void orderStatusUpdatedAfterTrade() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            // Create orders
+            Order buyOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
+            );
+
+            orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.SELL, 100.0, 150.0)
+            );
+
+            // Verify order status updated in database
+            Order dbOrder = orderRepository.findById(buyOrder.getId()).orElseThrow();
+            assert dbOrder.getStatus().toString().equals("FILLED");
+            assert dbOrder.getFilledQuantity().equals(100.0);
+        }
     }
+
+    @Nested
+    class MultipleSymbolTests {
+        @Test
+        void ordersForDifferentSymbolsAreIsolated() throws Exception {
+            // Create order books
+            registry.createOrderBook("AAPL");
+            registry.createOrderBook("GOOGL");
+
+            // Create orders for AAPL
+            orderBookService.createOrder("AAPL", new Order(null, "AAPL", Side.BUY, 100.0, 150.0));
+            orderBookService.createOrder("AAPL", new Order(null, "AAPL", Side.SELL, 100.0, 151.0));
+
+            // Create orders for GOOGL
+            orderBookService.createOrder("GOOGL", new Order(null, "GOOGL", Side.BUY, 50.0, 2800.0));
+            orderBookService.createOrder("GOOGL", new Order(null, "GOOGL", Side.SELL, 50.0, 2801.0));
+
+            // Verify AAPL order book
+            mockMvc.perform(get("/api/orderbook/{symbol}", "AAPL"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.bidLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.askLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
+                    .andExpect(jsonPath("$.askLevels[0].price").value(151.0));
+
+            // Verify GOOGL order book
+            mockMvc.perform(get("/api/orderbook/{symbol}", "GOOGL"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.bidLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.askLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(2800.0))
+                    .andExpect(jsonPath("$.askLevels[0].price").value(2801.0));
+        }
+    }
+
+
 }

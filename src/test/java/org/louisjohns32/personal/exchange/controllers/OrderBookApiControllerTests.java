@@ -100,7 +100,7 @@ public class OrderBookApiControllerTests {
 	    public void createValidOrderCallsService() throws Exception {
 	        String symbol = "SYMB";
 	        
-	        Order mockOrder = new Order(1L, Side.BUY, 10, 100);
+	        Order mockOrder = new Order(1L, symbol, Side.BUY, 10., 100.);
 	        
 	        when(orderBookService.createOrder(eq(symbol), any(Order.class)))
 	            .thenReturn(mockOrder);

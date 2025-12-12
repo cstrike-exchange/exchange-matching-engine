@@ -1,13 +1,18 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  localstack:
-    image: localstack/localstack:3
-    container_name: localstack
-    ports:
-      - "4566:4566"  
+  postgres:
+    image: postgres:15-alpine
+    container_name: exchange-db
     environment:
-      - SERVICES=sns
-      - DEBUG=1
+      POSTGRES_DB: exchange
+      POSTGRES_USER: exchange_user
+      POSTGRES_PASSWORD: exchange_pass
+    ports:
+      - "5432:5432"
     volumes:
-      - ./localstack:/etc/localstack/init/ready.d  # optional for auto-setup
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:

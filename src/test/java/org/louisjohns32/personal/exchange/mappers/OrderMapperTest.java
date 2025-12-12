@@ -1,6 +1,7 @@
 package org.louisjohns32.personal.exchange.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 import org.louisjohns32.personal.exchange.constants.Side;
@@ -17,7 +18,7 @@ public class OrderMapperTest {
 
         Order order = mapper.toEntity(dto);
 
-        assertEquals(0, order.getId());
+        assertNull(order.getId());
         assertEquals(dto.getQuantity(), order.getQuantity());
         assertEquals(dto.getPrice(), order.getPrice());
         assertEquals(dto.getSide(), order.getSide());
