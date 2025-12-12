@@ -196,5 +196,105 @@ public class OrderBookApiControllerIntegrationTests {
         }
     }
 
+    @Nested
+    class GetOrderTests {
+        @Test
+        void getOrder_returnsOrderDetails() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            Order createdOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 100.0, 150.50)
+            );
+
+            mockMvc.perform(get("/api/orders/{orderId}", createdOrder.getId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(createdOrder.getId()))
+                    .andExpect(jsonPath("$.symbol").value("AAPL"))
+                    .andExpect(jsonPath("$.side").value("BUY"))
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.price").value(150.50))
+                    .andExpect(jsonPath("$.filledQuantity").value(0.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(100.0))
+                    .andExpect(jsonPath("$.status").value("OPEN"))
+                    .andExpect(jsonPath("$.createdAt").exists());
+        }
+
+        @Test
+        void getOrder_partiallyFilledOrder() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            Order buyOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
+            );
+
+            orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.SELL, 30.0, 150.0)
+            );
+
+            mockMvc.perform(get("/api/orders/{orderId}", buyOrder.getId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(buyOrder.getId()))
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(30.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(70.0))
+                    .andExpect(jsonPath("$.status").value("PARTIAL"));
+        }
+
+        @Test
+        void getOrder_fullyFilledOrder() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            Order buyOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 50.0, 150.0)
+            );
+
+            orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.SELL, 50.0, 150.0)
+            );
+
+            mockMvc.perform(get("/api/orders/{orderId}", buyOrder.getId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(buyOrder.getId()))
+                    .andExpect(jsonPath("$.quantity").value(50.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(50.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(0.0))
+                    .andExpect(jsonPath("$.status").value("FILLED"));
+        }
+
+        @Test
+        void getOrder_notFound() throws Exception {
+            mockMvc.perform(get("/api/orders/{orderId}", 999999L))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void getOrder_multiplePartialFills() throws Exception {
+            String symbol = "AAPL";
+            registry.createOrderBook(symbol);
+
+            Order buyOrder = orderBookService.createOrder(
+                    symbol,
+                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
+            );
+
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 10.0, 150.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 20.0, 150.0));
+            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 15.0, 150.0));
+
+            mockMvc.perform(get("/api/orders/{orderId}", buyOrder.getId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.filledQuantity").value(45.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(55.0))
+                    .andExpect(jsonPath("$.status").value("PARTIAL"));
+        }
+    }
 
 }
