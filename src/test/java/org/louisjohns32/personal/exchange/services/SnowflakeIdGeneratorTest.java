@@ -13,7 +13,7 @@ import java.util.Set;
 
 public class SnowflakeIdGeneratorTest {
 
-    private static final long WORKER_ID = 10L;
+    private static final long WORKER_ID = 1000L;
     private static final long BASE_TIMESTAMP = 10000000L;
 
     private SnowflakeIdGenerator idGenerator;
@@ -80,13 +80,15 @@ public class SnowflakeIdGeneratorTest {
         when(mockTimeProvider.currentTimeMillis()).thenReturn(BASE_TIMESTAMP);
 
         for (int i = 0; i < 4096; i++) {
-            idGenerator.nextId();
+            long id = idGenerator.nextId();
+            assertEquals(i, extractSequence(id));
         }
 
-        when(mockTimeProvider.currentTimeMillis()).thenReturn(BASE_TIMESTAMP + 1);
+        when(mockTimeProvider.currentTimeMillis()).thenReturn(BASE_TIMESTAMP, BASE_TIMESTAMP + 1);
 
         long id = idGenerator.nextId();
         assertEquals(0, extractSequence(id));
+        assertEquals(BASE_TIMESTAMP + 1, extractTimestamp(id));
     }
 
     @Test
@@ -108,12 +110,50 @@ public class SnowflakeIdGeneratorTest {
         when(mockTimeProvider.currentTimeMillis()).thenReturn(BASE_TIMESTAMP);
         long id = idGenerator.nextId();
 
-        long extractedWorkerId = (id >> 12) & 0x1F;
+        long extractedWorkerId = (id >> 12) & 0x3FF;
 
         assertEquals(WORKER_ID, extractedWorkerId);
     }
 
+    @Test
+    void testWorkerIdValidation_tooLarge_throwsException() {
+        long maxWorkerId = (1L << 10) - 1;  // 1023 for 10 bits
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new SnowflakeIdGenerator(maxWorkerId + 1, mockTimeProvider));
+    }
+
+    @Test
+    void testWorkerIdValidation_negative_throwsException() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new SnowflakeIdGenerator(-1, mockTimeProvider));
+    }
+
+    @Test
+    void testWorkerIdValidation_maxAllowed_succeeds() {
+        long maxWorkerId = (1L << 10) - 1;  // 1023
+        assertDoesNotThrow(() -> new SnowflakeIdGenerator(maxWorkerId, mockTimeProvider));
+    }
+
+    @Test
+    void testClockRollback_throwsException() {
+        when(mockTimeProvider.currentTimeMillis())
+                .thenReturn(BASE_TIMESTAMP)
+                .thenReturn(BASE_TIMESTAMP - 1);  // Clock moved backwards!
+
+        idGenerator.nextId();  // First call succeeds
+
+        assertThrows(IllegalStateException.class,
+                () -> idGenerator.nextId(),
+                "Clock moved backwards");
+    }
+
+
+
     private long extractSequence(long id) {
         return id & 0xFFF;
+    }
+    private long extractTimestamp(long id) {
+        return (id >> 22) & 0x1FFFFFFFFFFL;
     }
 }
