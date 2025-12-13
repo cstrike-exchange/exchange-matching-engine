@@ -13,8 +13,10 @@ import org.louisjohns32.personal.exchange.constants.Side;
 import org.louisjohns32.personal.exchange.dao.OrderRepository;
 import org.louisjohns32.personal.exchange.dao.TradeRepository;
 import org.louisjohns32.personal.exchange.entities.Order;
+import org.louisjohns32.personal.exchange.services.IdGenerator;
 import org.louisjohns32.personal.exchange.services.OrderBookRegistry;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
+import org.louisjohns32.personal.exchange.services.OrderQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +47,12 @@ public class OrderBookApiControllerIntegrationTests {
 
     @Autowired
     private TradeRepository tradeRepository;
+
+    @Autowired
+    private IdGenerator<Long> idGenerator;
+
+    @Autowired
+    private OrderQueryService orderQueryService;
 
     @BeforeEach
     void setUp() {

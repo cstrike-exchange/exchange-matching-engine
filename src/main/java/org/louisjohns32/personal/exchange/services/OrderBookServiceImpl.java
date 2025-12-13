@@ -29,8 +29,9 @@ import jakarta.validation.Validator;
  */
 @Service
 public class OrderBookServiceImpl implements OrderBookService {
-	
-	private final AtomicLong idGenerator = new AtomicLong(1);
+
+    @Autowired
+	private IdGenerator<Long> idGenerator;
 
 	@Autowired
 	private Validator validator;
@@ -60,7 +61,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 			throw new ConstraintViolationException(violations);
 		}
 		
-		long orderId = idGenerator.getAndIncrement();
+		long orderId = idGenerator.nextId();
 		Order newOrder = new Order(orderId, order);
 
         // Add order

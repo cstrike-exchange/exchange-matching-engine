@@ -12,7 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +26,9 @@ import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderBook;
 import org.louisjohns32.personal.exchange.exceptions.OrderBookNotFoundException;
 import org.louisjohns32.personal.exchange.mappers.OrderMapper;
+import org.louisjohns32.personal.exchange.services.IdGenerator;
 import org.louisjohns32.personal.exchange.services.OrderBookService;
+import org.louisjohns32.personal.exchange.services.OrderQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -43,6 +47,18 @@ public class OrderBookApiControllerTests {
 	
 	@MockitoBean
 	private OrderBookService orderBookService;
+
+    @MockitoBean
+    private OrderQueryService orderQueryService;
+
+    @MockitoBean
+    private IdGenerator<Long> idGenerator;
+
+    @BeforeEach
+    public void setup() {
+        AtomicLong idCounter = new AtomicLong(1000L);
+        when(idGenerator.nextId()).thenAnswer(invocation -> idCounter.getAndIncrement());
+    }
 	
 	@Test
     public void getOrderBookValid() throws Exception {

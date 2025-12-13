@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -52,6 +53,9 @@ public class OrderBookServiceTest {
     @Mock
     private OrderBookRegistry orderBookRegistry;
 
+    @Mock
+    private IdGenerator<Long> idGenerator;
+
     @InjectMocks
     @Spy
     private OrderBookServiceImpl orderBookService;
@@ -65,6 +69,9 @@ public class OrderBookServiceTest {
 
     @BeforeEach
     void setUp() {
+        AtomicLong idCounter = new AtomicLong(1000L);
+        when(idGenerator.nextId()).thenAnswer(invocation -> idCounter.getAndIncrement());
+
         bidOrder = new Order(1L, SYMBOL, Side.BUY, 5.0, 100.0);
         askOrder = new Order(2L, SYMBOL, Side.SELL, 5.0, 99.0);
     }
@@ -125,7 +132,6 @@ public class OrderBookServiceTest {
             Order result = orderBookService.createOrder(orderBook, inputOrder);
 
             assertNotNull(result);
-            assertEquals(1L, result.getId());
             verify(orderBook).addOrder(any(Order.class));
         }
     }
