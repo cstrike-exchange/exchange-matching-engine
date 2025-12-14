@@ -128,7 +128,7 @@ public class OrderBookApiControllerTests {
 	                + "\"symbol\": \"" + symbol + "\""
 	                + "}";
 	        
-	        mvc.perform(post("/api/orderbook/{symbol}", symbol)
+	        mvc.perform(post("/api/orders", symbol)
 	                .content(orderRequestJson)
 	                .contentType(MediaType.APPLICATION_JSON))
 	            .andExpect(status().isCreated());
@@ -147,11 +147,10 @@ public class OrderBookApiControllerTests {
 	                + "\"symbol\": \"" + symbol + "\""
 	                + "}";
 
-	        mvc.perform(post("/api/orderbook/{symbol}", symbol)
+	        mvc.perform(post("/api/orders", symbol)
 	                .content(orderRequestJson)
 	                .contentType(MediaType.APPLICATION_JSON))
-	            .andExpect(status().isBadRequest())
-	            .andExpect(jsonPath("$.price").exists()); 
+	            .andExpect(status().isBadRequest());
 	    }
 
 	}

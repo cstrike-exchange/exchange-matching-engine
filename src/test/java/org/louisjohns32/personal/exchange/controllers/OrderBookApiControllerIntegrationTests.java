@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -302,6 +303,530 @@ public class OrderBookApiControllerIntegrationTests {
                     .andExpect(jsonPath("$.filledQuantity").value(45.0))
                     .andExpect(jsonPath("$.remainingQuantity").value(55.0))
                     .andExpect(jsonPath("$.status").value("PARTIAL"));
+        }
+    }
+
+    @Nested
+    class PostOrderTests {
+
+        private static final String SYMBOL = "AAPL";
+
+        @BeforeEach
+        void setUpOrderBook() {
+            registry.createOrderBook(SYMBOL);
+        }
+
+        @Test
+        void postOrder_createsNewOrder_returnsCreated() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id").exists())
+                    .andExpect(jsonPath("$.symbol").value(SYMBOL))
+                    .andExpect(jsonPath("$.side").value("BUY"))
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.price").value(150.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(0.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(100.0))
+                    .andExpect(jsonPath("$.status").value("OPEN"))
+                    .andExpect(jsonPath("$.createdAt").exists())
+                    .andExpect(jsonPath("$.updatedAt").exists());
+        }
+
+        @Test
+        void postOrder_sellOrder_createsSuccessfully() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "SELL",
+            "quantity": 50.0,
+            "price": 151.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.side").value("SELL"))
+                    .andExpect(jsonPath("$.quantity").value(50.0))
+                    .andExpect(jsonPath("$.price").value(151.0))
+                    .andExpect(jsonPath("$.status").value("OPEN"));
+        }
+
+        @Test
+        void postOrder_canBeRetrievedById() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            String response = mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            Long orderId = extractOrderIdFromResponse(response);
+            Thread.sleep(50);
+
+            mockMvc.perform(get("/api/orders/{orderId}", orderId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(orderId))
+                    .andExpect(jsonPath("$.symbol").value(SYMBOL))
+                    .andExpect(jsonPath("$.side").value("BUY"))
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.price").value(150.0));
+        }
+
+        @Test
+        void postOrder_appearsInOrderBook() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated());
+
+            Thread.sleep(50);
+
+            mockMvc.perform(get("/api/orderbook/{symbol}", SYMBOL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.bidLevels", hasSize(1)))
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
+                    .andExpect(jsonPath("$.bidLevels[0].volume").value(100.0));
+        }
+
+        @Test
+        void postOrder_fullMatch_returnsFilled() throws Exception {
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 100.0, 150.0));
+
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(100.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(0.0))
+                    .andExpect(jsonPath("$.status").value("FILLED"));
+        }
+
+        @Test
+        void postOrder_partialMatch_returnsPartial() throws Exception {
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 50.0, 150.0));
+
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(50.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(50.0))
+                    .andExpect(jsonPath("$.status").value("PARTIAL"));
+        }
+
+        @Test
+        void postOrder_multiplePartialMatches() throws Exception {
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 30.0, 150.0));
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 20.0, 150.0));
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 25.0, 150.0));
+
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.quantity").value(100.0))
+                    .andExpect(jsonPath("$.filledQuantity").value(75.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(25.0))
+                    .andExpect(jsonPath("$.status").value("PARTIAL"));
+        }
+
+        @Test
+        void postOrder_noMatch_remainsOpen() throws Exception {
+            orderBookService.createOrder(SYMBOL,
+                    new Order(null, SYMBOL, Side.SELL, 100.0, 160.0));
+
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.filledQuantity").value(0.0))
+                    .andExpect(jsonPath("$.remainingQuantity").value(100.0))
+                    .andExpect(jsonPath("$.status").value("OPEN"));
+        }
+
+        @Test
+        void postOrder_missingField_symbol_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_missingField_side_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_missingField_quantity_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_missingField_price_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_negativeQuantity_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": -100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_negativePrice_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": -150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_zeroQuantity_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 0.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_zeroPrice_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 0.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_invalidSide_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "INVALID",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_malformedJson_returnsBadRequest() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void postOrder_symbolNotFound_returnsNotFound() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "ABCD",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void postOrder_multipleOrders_uniqueIds() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            String response1 = mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            String response2 = mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            Long id1 = extractOrderIdFromResponse(response1);
+            Long id2 = extractOrderIdFromResponse(response2);
+
+            assert !id1.equals(id2);
+            assert id2 > id1;
+        }
+
+        @Test
+        void postOrder_decimalQuantityAndPrice() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 123.456,
+            "price": 150.789
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.quantity").value(123.456))
+                    .andExpect(jsonPath("$.price").value(150.789));
+        }
+
+        @Test
+        void postOrder_veryLargeQuantity() throws Exception {
+            String orderJson = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 1000000.0,
+            "price": 150.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.quantity").value(1000000.0));
+        }
+
+        @Test
+        void postOrder_multipleSymbols_isolated() throws Exception {
+            String symbol1 = "AAPL";
+            String symbol2 = "GOOGL";
+
+            registry.createOrderBook(symbol2);
+
+            String orderJson1 = """
+        {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 100.0,
+            "price": 150.0
+        }
+        """;
+
+            String orderJson2 = """
+        {
+            "symbol": "GOOGL",
+            "side": "BUY",
+            "quantity": 50.0,
+            "price": 2800.0
+        }
+        """;
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson1))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.symbol").value(symbol1));
+
+            mockMvc.perform(post("/api/orders")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(orderJson2))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.symbol").value(symbol2));
+
+            Thread.sleep(50);
+
+            mockMvc.perform(get("/api/orderbook/{symbol}", symbol1))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(150.0))
+                    .andExpect(jsonPath("$.bidLevels[0].volume").value(100.0));
+
+            mockMvc.perform(get("/api/orderbook/{symbol}", symbol2))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.bidLevels[0].price").value(2800.0))
+                    .andExpect(jsonPath("$.bidLevels[0].volume").value(50.0));
+        }
+
+        private Long extractOrderIdFromResponse(String jsonResponse) throws Exception {
+            return new ObjectMapper()
+                    .readTree(jsonResponse)
+                    .get("id")
+                    .asLong();
         }
     }
 
