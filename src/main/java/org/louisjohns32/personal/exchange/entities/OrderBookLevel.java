@@ -10,17 +10,15 @@ import org.louisjohns32.personal.exchange.constants.Side;
 /**
  * Represents a single price level in the order book.
  * Maintains FIFO queue of orders at the same price using LinkedList.
- * Thread-safe using ReentrantReadWriteLock.
+ * Must be single-threaded
  */
 public class OrderBookLevel {
-	
-	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	// contains orders
 	
-	private LinkedList<Order> orders;
-	private double price;
-	private Side side;
+	private final LinkedList<Order> orders;
+	private final double price;
+	private final Side side;
 	private double volume;
 	// FUTURE: Implement custom linked list for O(1) removal (currently O(n))
 	
@@ -40,22 +38,12 @@ public class OrderBookLevel {
 	}
 	
 	public void addOrder(Order order) {
-		lock.writeLock().lock();
-		try {
-			orders.addLast(order);	
-			volume += order.getQuantity();
-		} finally {
-			lock.writeLock().unlock();
-		}
+        orders.addLast(order);
+        volume += order.getQuantity();
 	}
 	
 	public Order getOrder() {
-		lock.readLock().lock();
-		try {
-			return orders.getFirst();
-		} finally {
-			lock.readLock().unlock();
-		}
+        return orders.getFirst();
 	}
 	
 	public double getVolume() {
@@ -68,29 +56,14 @@ public class OrderBookLevel {
 	}
 	
 	public void removeOrderById(long id) { // O(n), could be optimized with custom LinkedList
-		lock.writeLock().lock();
-		try {
-			orders.removeIf(order ->(order.getId() == id));
-		} finally {
-			lock.writeLock().unlock();
-		}
+        orders.removeIf(order ->(order.getId() == id));
 	}
 	
 	public List<Order> getOrders() {
-		lock.readLock().lock();
-		try {
-			return Collections.unmodifiableList(orders);
-		} finally {
-			lock.readLock().unlock();
-		}
+        return Collections.unmodifiableList(orders);
 	}
 	
 	public boolean isEmpty() {
-		lock.readLock().lock();
-		try {
-			return orders.isEmpty();
-		} finally {
-			lock.readLock().unlock();
-		}
+        return orders.isEmpty();
 	}
 }

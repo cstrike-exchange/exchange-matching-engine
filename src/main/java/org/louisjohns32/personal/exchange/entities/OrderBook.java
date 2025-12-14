@@ -15,8 +15,7 @@ import org.louisjohns32.personal.exchange.constants.Side;
  */
 public class OrderBook {
 	
-	private final ReentrantReadWriteLock levelLock = new ReentrantReadWriteLock();
-	
+
 	private ConcurrentSkipListMap<Double, OrderBookLevel> bidLevels; 
 	private ConcurrentSkipListMap<Double, OrderBookLevel> askLevels;
 	
@@ -37,14 +36,10 @@ public class OrderBook {
 	
 	public void addOrder(Order order) {
 		OrderBookLevel level;
-		levelLock.writeLock().lock();
-		try {
-			level = order.getSide() == Side.BUY
-				    ? bidLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.BUY))
-				    : askLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.SELL));
-		} finally {
-			levelLock.writeLock().unlock();
-		}
+        level = order.getSide() == Side.BUY
+                ? bidLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.BUY))
+                : askLevels.computeIfAbsent(order.getPrice(), p -> new OrderBookLevel(p, Side.SELL));
+
 		level.addOrder(order);
 		orderMap.put(order.getId(), order);
 	}
@@ -55,15 +50,10 @@ public class OrderBook {
 	}
 	
 	private OrderBookLevel createLevel(double price, Side side) {
-		levelLock.writeLock().lock();
-		try {
-			OrderBookLevel level = new OrderBookLevel(price, side);
-			if(side == Side.BUY) bidLevels.put(price, level);
-			else askLevels.put(price, level);
-			return level;
-		} finally {
-			levelLock.writeLock().unlock();
-		}
+        OrderBookLevel level = new OrderBookLevel(price, side);
+        if(side == Side.BUY) bidLevels.put(price, level);
+        else askLevels.put(price, level);
+        return level;
 	}
 	
 	public OrderBookLevel getHighestBidLevel() {
@@ -83,15 +73,10 @@ public class OrderBook {
 	}
 	
 	public void removeOrder(Order order) { 
-		levelLock.writeLock().lock();
-		try {
-			OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
-			level.removeOrderById(order.getId());
-			orderMap.remove(order.getId());
-			if(level.isEmpty()) removeLevel(level);
-		} finally {
-			levelLock.writeLock().unlock();
-		}
+        OrderBookLevel level = getLevel(order.getPrice(), order.getSide());
+        level.removeOrderById(order.getId());
+        orderMap.remove(order.getId());
+        if(level.isEmpty()) removeLevel(level);
 	}
 	
 	public Map<Double, OrderBookLevel> getBidLevels() {

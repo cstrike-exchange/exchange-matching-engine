@@ -44,18 +44,18 @@ public class OrderBookServiceImpl implements OrderBookService {
 	
 	
 	@Override
-	public OrderBook getOrderBook(String symbol) {
+	public synchronized OrderBook getOrderBook(String symbol) {
 		return registry.getOrderBook(symbol);
 	}
 
 	@Override
-	public OrderBook createOrderBook(String symbol) {
+	public synchronized OrderBook createOrderBook(String symbol) {
 		registry.createOrderBook(symbol);
 		return registry.getOrderBook(symbol);
 	}
 	
 	@Override
-	public Order createOrder(OrderBook orderBook, Order order) {
+	public synchronized Order createOrder(OrderBook orderBook, Order order) {
 		Set<ConstraintViolation<Order>> violations = validator.validate(order);
 		if(!violations.isEmpty()) {
 			throw new ConstraintViolationException(violations);
@@ -85,7 +85,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	public void deleteOrderById(OrderBook orderBook, long id) {
+	public synchronized void deleteOrderById(OrderBook orderBook, long id) {
 		Order order = orderBook.getOrderById(id);
 		orderBook.removeOrder(order);
 
@@ -93,7 +93,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	public double fillOrder(OrderBook orderBook, Order order, double amnt) {
+	public synchronized double fillOrder(OrderBook orderBook, Order order, double amnt) {
 		order.fill(amnt);
 		double amntLeft = order.getRemainingQuantity();
 		if(amntLeft == 0) {
@@ -104,7 +104,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 	
 	@Override
-	public List<Trade> match(OrderBook orderBook, Order newOrder) {
+	public synchronized List<Trade> match(OrderBook orderBook, Order newOrder) {
 		OrderBookLevel opposingLevel;
         Trade executedTrade;
         List<Trade> trades = new ArrayList<>();
@@ -155,7 +155,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	public OrderBookDTO getAggregatedOrderBook(String symbol) {
+	public synchronized OrderBookDTO getAggregatedOrderBook(String symbol) {
 		OrderBook orderBook = registry.getOrderBook(symbol);
 		
 		Map<Double, OrderBookLevel> askLevels = orderBook.getAskLevels();
@@ -178,7 +178,7 @@ public class OrderBookServiceImpl implements OrderBookService {
 	}
 
 	@Override
-	public Order createOrder(String symbol, Order order) {
+	public synchronized Order createOrder(String symbol, Order order) {
 		OrderBook ob = registry.getOrderBook(symbol);
 		return createOrder(ob, order);
 	}
