@@ -1,6 +1,5 @@
 package org.louisjohns32.personal.exchange.services;
 
-
 import org.louisjohns32.personal.exchange.dao.OrderRepository;
 import org.louisjohns32.personal.exchange.dao.TradeRepository;
 import org.louisjohns32.personal.exchange.dto.OrderCancellationEvent;
@@ -11,18 +10,16 @@ import org.louisjohns32.personal.exchange.entities.Order;
 import org.louisjohns32.personal.exchange.entities.OrderStatus;
 import org.louisjohns32.personal.exchange.entities.Trade;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+@Component
+public class OrderPersistService {
 
-/**
- * Synchronous database write event publisher
- * Writes orders to OrderDB synchronously, adding significant latency (2+ms), and limiting throughput. This is intended
- * for MVP only, with a migration to Kafka, or WAL in phase 1.
- *
- */
-//@Service
-public class SyncDBEventPublisher implements EventPublisher {
+    @Value("${exchange.kafka.topics.order-events}")
+    private String ordersTopic; // TODO use this
 
     @Autowired
     OrderRepository orderRepository;
@@ -31,9 +28,12 @@ public class SyncDBEventPublisher implements EventPublisher {
     TradeRepository tradeRepository;
 
 
-    @Override
+    @KafkaListener(topics = "order.events", groupId = "group_id",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
     @Transactional
-    public void publish(OrderEvent event) {
+    public void consume(OrderEvent event) {
+        System.out.println("Order event received: " + event);
         switch (event) {
             case OrderCreationEvent orderCreationEvent -> handleOrderCreation(orderCreationEvent);
             case OrderCancellationEvent orderCancellationEvent -> handleOrderCancellation(orderCancellationEvent);
@@ -41,14 +41,6 @@ public class SyncDBEventPublisher implements EventPublisher {
             default -> throw new IllegalArgumentException(
                     "Unknown event type: " + event.getClass().getName()
             );
-        }
-    }
-
-    @Override
-    @Transactional
-    public void publishBatch(List<OrderEvent> events) {
-        for (OrderEvent event : events) {
-            publish(event);
         }
     }
 
@@ -63,6 +55,7 @@ public class SyncDBEventPublisher implements EventPublisher {
 
         orderRepository.save(order);
     }
+
 
     private void handleOrderCancellation(OrderCancellationEvent event) {
 
@@ -91,12 +84,12 @@ public class SyncDBEventPublisher implements EventPublisher {
         tradeRepository.save(trade);
     }
 
+
     private void updateOrderFromTrade(Long orderId, Double fillAmount) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Order not found: " + orderId
                 ));
-
 
         order.setFilledQuantity(order.getFilledQuantity() + fillAmount);
 
@@ -109,4 +102,6 @@ public class SyncDBEventPublisher implements EventPublisher {
 
         orderRepository.save(order);
     }
+
+
 }
