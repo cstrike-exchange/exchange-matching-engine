@@ -16,16 +16,12 @@ import org.louisjohns32.personal.exchange.services.OrderQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 
@@ -50,22 +46,11 @@ public class OrderBookApiController {
 		return orderBookService.getAggregatedOrderBook(symbol);
 	}
 	
-	@PostMapping("/orderbook/{symbol}") 
-	public ResponseEntity<?> createOrder(@RequestBody @Valid OrderRequestDTO orderRequest, BindingResult result) {
-		if(result.hasErrors()) {
-			Map<String, String> errors = result.getFieldErrors().stream()
-		            .collect(Collectors.toMap(
-		                FieldError::getField,
-		                FieldError::getDefaultMessage,
-		                (existing, replacement) -> existing
-		            ));
-			return ResponseEntity.badRequest().body(errors);
-		}
-		
-		
-		Order order = orderBookService.createOrder(orderRequest.getSymbol(), orderMapper.toEntity(orderRequest));
-		return ResponseEntity.created(null).build();
-		
+	@PostMapping("/orders")
+    @ResponseStatus(HttpStatus.CREATED)
+	public OrderResponseDTO createOrder(@RequestBody @Valid OrderRequestDTO orderRequest) {
+		Order createdOrder = orderBookService.createOrder(orderRequest.getSymbol(), orderMapper.toEntity(orderRequest));
+        return OrderResponseDTO.fromEntity(createdOrder);
 	}
 	
 	
