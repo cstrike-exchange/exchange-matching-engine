@@ -40,6 +40,9 @@ public class OrderBookServiceImpl implements OrderBookService {
 
     @Autowired
     private EventPublisher publisher;
+
+    @Autowired
+    SequenceNumberGenerator sequenceGenerator;
 	
 	
 	@Override
@@ -73,8 +76,10 @@ public class OrderBookServiceImpl implements OrderBookService {
                 newOrder.getSide(),
                 newOrder.getQuantity(),
                 newOrder.getPrice(),
-                newOrder.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
+                newOrder.getCreatedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                sequenceGenerator.getSequenceNumber(newOrder.getSymbol())
         ));
+
 
         // Match order
         events.addAll(match(orderBook, newOrder).stream().map(this::buildTradeEvent).toList());
@@ -88,7 +93,9 @@ public class OrderBookServiceImpl implements OrderBookService {
 		Order order = orderBook.getOrderById(id);
 		orderBook.removeOrder(order);
 
-        publisher.publish(new OrderCancellationEvent(order.getId(), order.getSymbol(), System.currentTimeMillis()));
+        publisher.publish(new OrderCancellationEvent(order.getId(),
+                order.getSymbol(), System.currentTimeMillis(),
+                sequenceGenerator.getSequenceNumber(order.getSymbol())));
 	}
 
 	@Override
@@ -187,7 +194,8 @@ public class OrderBookServiceImpl implements OrderBookService {
                 trade.getSellOrderId(),
                 trade.getPrice(),
                 trade.getQuantity(),
-                trade.getExecutedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
+                trade.getExecutedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                sequenceGenerator.getSequenceNumber(trade.getSymbol())
             );
     }
 }

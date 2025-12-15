@@ -4,26 +4,23 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
+@Getter
 public class OrderCancellationEvent implements OrderEvent {
-    @Getter
     private final Long orderId;
     private final String symbol;
     private final long timestamp;
+    private final long sequenceNumber;
 
     @JsonCreator
     public OrderCancellationEvent(
             @JsonProperty("orderId") Long orderId,
             @JsonProperty("symbol") String symbol,
-            @JsonProperty("timestamp") long timestamp
+            @JsonProperty("timestamp") long timestamp,
+            @JsonProperty("sequenceNumber") long sequenceNumber
     ) {
         this.orderId = orderId;
         this.symbol = symbol;
         this.timestamp = timestamp;
+        this.sequenceNumber = sequenceNumber;
     }
-
-    @Override
-    public String getSymbol() { return symbol; }
-
-    @Override
-    public long getTimestamp() { return timestamp; }
 }

@@ -18,4 +18,6 @@ public interface OrderEvent {
     String getSymbol();
     
     long getTimestamp();
+
+    long getSequenceNumber();
 }

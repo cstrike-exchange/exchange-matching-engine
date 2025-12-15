@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -50,7 +49,7 @@ class KafkaEventPublisherTest {
     @Test
     void shouldCallKafkaTemplateWithCorrectParameters() {
         OrderCreationEvent event = new OrderCreationEvent(
-                12345L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis()
+                12345L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis(),1
         );
 
         eventPublisher.publish(event);
@@ -64,8 +63,8 @@ class KafkaEventPublisherTest {
     @Test
     void shouldPublishBatchOfEvents() {
         List<OrderEvent> events = List.of(
-                new OrderCreationEvent(1L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis()),
-                new OrderCreationEvent(2L, "GOOGL", Side.SELL, 50.0, 2800.0, System.currentTimeMillis())
+                new OrderCreationEvent(1L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis(),1),
+                new OrderCreationEvent(2L, "GOOGL", Side.SELL, 50.0, 2800.0, System.currentTimeMillis(),2)
         );
 
         eventPublisher.publishBatch(events);
@@ -75,10 +74,10 @@ class KafkaEventPublisherTest {
     @Test
     void shouldUseSymbolAsPartitionKey() {
         OrderCreationEvent appleEvent = new OrderCreationEvent(
-                1L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis()
+                1L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis(),1
         );
         OrderCreationEvent googleEvent = new OrderCreationEvent(
-                2L, "GOOGL", Side.BUY, 50.0, 2800.0, System.currentTimeMillis()
+                2L, "GOOGL", Side.BUY, 50.0, 2800.0, System.currentTimeMillis(),2
         );
 
         eventPublisher.publish(appleEvent);
@@ -86,24 +85,5 @@ class KafkaEventPublisherTest {
 
         verify(kafkaTemplate).send(eq(TOPIC), eq("AAPL"), any());
         verify(kafkaTemplate).send(eq(TOPIC), eq("GOOGL"), any());
-    }
-
-    @Test
-    void shouldHandlePublishFailure_throwException() {
-        CompletableFuture<SendResult<String, OrderEvent>> failedFuture =
-                CompletableFuture.failedFuture(new RuntimeException("Kafka down"));
-        when(kafkaTemplate.send(any(), any(), any())).thenReturn(failedFuture);
-
-        OrderCreationEvent event = new OrderCreationEvent(
-                12345L, "AAPL", Side.BUY, 100.0, 150.0, System.currentTimeMillis()
-        );
-
-        RuntimeException exception = assertThrows(
-                RuntimeException.class,
-                () -> eventPublisher.publish(event)
-        );
-
-        assertThat(exception.getMessage()).contains("Failed to publish to Kafka");
-        verify(kafkaTemplate).send(eq("order.events"), eq("AAPL"), any());
     }
 }

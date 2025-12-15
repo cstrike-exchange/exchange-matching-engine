@@ -6,17 +6,15 @@ import lombok.Builder;
 import lombok.Getter;
 
 @Builder
+@Getter
 public class TradeExecutionEvent implements OrderEvent {
     private final String symbol;
-    @Getter
     private final long buyOrderId;
-    @Getter
     private final long sellOrderId;
-    @Getter
     private final double price;
-    @Getter
     private final double quantity;
     private final long timestamp;
+    private final long sequenceNumber;
 
     @JsonCreator
     public TradeExecutionEvent(
@@ -25,13 +23,15 @@ public class TradeExecutionEvent implements OrderEvent {
             @JsonProperty("sellOrderId") long sellOrderId,
             @JsonProperty("price") double price,
             @JsonProperty("quantity") double quantity,
-            @JsonProperty("timestamp") long timestamp ){
+            @JsonProperty("timestamp") long timestamp,
+            @JsonProperty("sequenceNumber") long sequenceNumber){
         this.symbol = symbol;
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
         this.price = price;
         this.quantity = quantity;
         this.timestamp = timestamp;
+        this.sequenceNumber = sequenceNumber;
     }
 
     @Override
