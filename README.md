@@ -1,67 +1,48 @@
-# Order Matching Engine
+# Exchange 
 
-Simulated exchange order matching engine with price-time priority and concurrent order processing.
+Simulated exchange prioritising high throughput and low latency trading. 
 
 ## Features
-- Price-time priority matching (orders matched by price, then timestamp)
-- Thread-safe order book using ConcurrentSkipListMap and ReentrantReadWriteLock
-- REST API for order submission and order book queries
-- Event publishing to AWS SNS for order lifecycle tracking
-- Handles partial fills across multiple price levels
+### Functional
+- Place orders on symbol
+- Match orders by price-time priority
+- Get status of order
+- Get aggregated view of orderbook
+- Serve real-time updates on state of orderbook
+
+### Non-functional (aims)
+- Low latency orders (<5ms)
+- High throuput orders (10k/s on each symbol)
+- Strong consistency of orders and trades
+- Eventual consistency on order status
+- High throughput order reads
+- High throughput orderbook reads/updates
+- Low latency orderbook reads/updates 
+
+## Components
+- **Matching Engine**: Servers order requests using in-memory orderbook. Publishes order/trade events to Kafka (I plan to add a disk WAL to write events to instead of publishing straight to Kafka, decreasing latency). 
+- **Order Persist Service**: Consumes Kafka events and writes to database to reflect new state.
+- **Order Query Service**: Serves order read requests by querying database. **Why?** decreases load on matching engine significantly, allowing for lower latency and higher throughput order requests.
+- **Market Data Service**: (WIP) Serves orderbook state requests, and orderbook subscriptions (through websocket). Maintains orderbook state in-memory by consuming Kafka events.
+- **API gateway**
+- **Kafka**
+- **Order Entry Service**: (WIP) Orchestrates order write requests. Handles user authorisation and locks user balance. This isn't scoped for the current implementation, but is worth a mention. 
+
+<img width="5174" height="2288" alt="image" src="https://github.com/user-attachments/assets/5ea64ba9-7b91-45f0-9e9c-4bea6924831f" />
+
+
 
 ## Quick Start
 ```bash
+mvn install
+docker-compose up -d
 mvn spring-boot:run
-# Application runs on localhost:8080
 
-# Create order book
-curl -X POST localhost:8080/api/orderbook \
-  -H "Content-Type: application/json" \
-  -d '{"symbol":"AAPL"}'
-
-# Submit order
-curl -X POST localhost:8080/api/orderbook/AAPL \
+# Create order
+curl -X POST localhost:8000/api/orderbook/AAPL \
   -H "Content-Type: application/json" \
   -d '{"side":"BUY","quantity":100,"price":150.50,"symbol":"AAPL"}'
 
-# View order book
-curl localhost:8080/api/orderbook/AAPL
+# View order - replace {orderId} with the orderId recieved in body of POST response
+curl http://localhost:8000/api/orders/{orderId}
 ```
-
-## Architecture
-- **OrderBook**: Maintains bid/ask levels using ConcurrentSkipListMap for sorted, thread-safe price level access
-- **OrderBookLevel**: FIFO queue of orders at same price, protected by ReentrantReadWriteLock
-- **Matching Engine**: Walks through price levels to execute trades, handles partial fills
-- **Event Publishing**: Publishes ORDER_CREATED, ORDER_CANCELLED, and TRADE_EXECUTED events to AWS SNS
-
-## Technical Details
-**Data Structures:**
-- ConcurrentSkipListMap for O(log n) sorted price level operations
-- ConcurrentHashMap for O(1) order lookup by ID
-- LinkedList for FIFO order queues within each price level
-
-**Complexity:**
-- Order insertion: O(log n) for new price level, O(1) for existing level
-- Order matching: O(k) where k = number of price levels to walk through
-- Best bid/ask: O(log n)
-
-**Testing:**
-- Comprehensive unit tests for controllers, services, and entities
-- Integration tests with Testcontainers and LocalStack for SNS
-- Concurrency tests with 1000+ simultaneous threads validating thread safety
-
-## Technology Stack
-Java 17 | Spring Boot 3.4 | AWS SNS | Maven | Docker | Testcontainers
-
-## Run Tests
-```bash
-mvn test
-```
-
-## Future Improvements
-- Market orders (currently limit orders only)
-- Custom LinkedList implementation for O(1) order removal (currently O(n))
-- WebSocket streaming for real-time order book updates
-
-## Author
-Built to understand exchange mechanics and concurrent programming patterns.
