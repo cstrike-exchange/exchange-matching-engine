@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  api-gateway:
+    image: nginx:alpine
+    container_name: exchange-api-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - matching-engine
+    networks:
+      - exchange-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   postgres:
     image: postgres:15-alpine
     container_name: exchange-postgres
@@ -72,18 +89,10 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    ports:
-      - "8080:8080"
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EXCHANGE_KAFKA_TOPICS_ORDER_EVENTS: order.events
       SNOWFLAKE_WORKER_ID: 1
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
     networks:
       - exchange-network
 
