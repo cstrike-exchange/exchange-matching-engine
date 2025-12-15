@@ -17,6 +17,7 @@
         <module>matching-engine</module>
         <module>common-libs</module>
         <module>order-persist-service</module>
+        <module>order-query-service</module>
     </modules>
 
     <properties>
