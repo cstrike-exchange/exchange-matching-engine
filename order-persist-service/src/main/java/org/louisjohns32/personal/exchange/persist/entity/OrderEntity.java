@@ -71,36 +71,15 @@ public class OrderEntity {
 
 
 
+    // TODO createdAt and updatedAt are incorrectly used here: time created and updated should be read from OrderEvent
+
 
     public Double getRemainingQuantity() {
         return quantity - filledQuantity;
     }
 
-
-    public void fill(Double amount) {
-        if (amount > getRemainingQuantity()) {
-            throw new IllegalArgumentException("Fill amount exceeds remaining quantity");
-        }
-        this.filledQuantity += amount;
-        this.updatedAt = LocalDateTime.now();
-
-        // Update status based on fill
-        if (isFilled()) {
-            this.status = OrderStatus.FILLED;
-        } else if (filledQuantity > 0) {
-            this.status = OrderStatus.PARTIAL;
-        }
-    }
-
-
     public boolean isFilled() {
         return filledQuantity.equals(quantity);
-    }
-
-
-    public void cancel() {
-        this.status = OrderStatus.CANCELLED;
-        this.updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate

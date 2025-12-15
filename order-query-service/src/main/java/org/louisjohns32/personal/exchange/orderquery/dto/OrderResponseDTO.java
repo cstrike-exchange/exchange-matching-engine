@@ -1,10 +1,10 @@
-package org.louisjohns32.personal.exchange.dto;
+package org.louisjohns32.personal.exchange.orderquery.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
 import org.louisjohns32.personal.exchange.common.domain.OrderStatus;
 import org.louisjohns32.personal.exchange.common.domain.Side;
-import org.louisjohns32.personal.exchange.entities.Order;
+import org.louisjohns32.personal.exchange.orderquery.entity.OrderEntity;
 
 import java.time.LocalDateTime;
 
@@ -42,7 +42,7 @@ public class OrderResponseDTO {
     @JsonProperty("updatedAt")
     LocalDateTime updatedAt;
 
-    public static OrderResponseDTO fromEntity(Order order) {
+    public static OrderResponseDTO fromEntity(OrderEntity order) {
         return OrderResponseDTO.builder()
                 .id(order.getId())
                 .symbol(order.getSymbol())
