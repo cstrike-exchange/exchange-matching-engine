@@ -39,7 +39,7 @@ docker-compose up -d
 mvn spring-boot:run
 
 # Create order
-curl -X POST localhost:8000/api/orderbook/AAPL \
+curl -X POST localhost:8000/api/orders \
   -H "Content-Type: application/json" \
   -d '{"side":"BUY","quantity":100,"price":150.50,"symbol":"AAPL"}'
 
