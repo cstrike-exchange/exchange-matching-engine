@@ -1,6 +1,6 @@
 # Exchange 
 
-Simulated exchange prioritising high throughput and low latency trading. 
+Simulated exchange, using a distrubted systems approach to facilitate high throughput and low latency trading.
 
 ## Features
 ### Functional
