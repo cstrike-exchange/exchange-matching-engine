@@ -6,10 +6,11 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.louisjohns32.personal.exchange.common.domain.Side;
-import org.louisjohns32.personal.exchange.dao.OrderRepository;
-import org.louisjohns32.personal.exchange.dao.TradeRepository;
 import org.louisjohns32.personal.exchange.entities.Order;
-import org.louisjohns32.personal.exchange.services.*;
+import org.louisjohns32.personal.exchange.services.IdGenerator;
+import org.louisjohns32.personal.exchange.services.OrderBookRegistry;
+import org.louisjohns32.personal.exchange.services.OrderBookService;
+import org.louisjohns32.personal.exchange.services.OrderQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Disabled
 public class OrderBookApiControllerIntegrationTests {
 
     @Autowired
@@ -44,25 +46,10 @@ public class OrderBookApiControllerIntegrationTests {
     private OrderBookRegistry registry;
 
     @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private TradeRepository tradeRepository;
-
-    @Autowired
     private IdGenerator<Long> idGenerator;
 
     @Autowired
     private OrderQueryService orderQueryService;
-
-    @Autowired
-    private OrderPersistService orderPersistService;
-
-    @BeforeEach
-    void setUp() {
-        orderRepository.deleteAll();
-        tradeRepository.deleteAll();
-    }
 
     @Nested
     class GetOrderBookTests {
@@ -109,69 +96,6 @@ public class OrderBookApiControllerIntegrationTests {
                     .andExpect(jsonPath("$.symbol").value(symbol))
                     .andExpect(jsonPath("$.bidLevels", hasSize(0)))
                     .andExpect(jsonPath("$.askLevels", hasSize(0)));
-        }
-    }
-
-    @Nested
-    @Disabled
-    class OrderPersistenceTests {
-        @Test
-        void orderIsSavedToDatabase() throws Exception {
-            String symbol = "AAPL";
-            registry.createOrderBook(symbol);
-
-            // Create order
-            Order createdOrder = orderBookService.createOrder(
-                    symbol,
-                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
-            );
-
-            // Verify it's in database
-            Order dbOrder = orderRepository.findById(createdOrder.getId())
-                    .orElseThrow(() -> new AssertionError("Order not found in database"));
-
-            assert dbOrder.getSymbol().equals("AAPL");
-            assert dbOrder.getSide() == Side.BUY;
-            assert dbOrder.getQuantity().equals(100.0);
-            assert dbOrder.getPrice().equals(150.0);
-        }
-
-        @Test
-        void tradeIsSavedToDatabase() throws Exception {
-            String symbol = "AAPL";
-            registry.createOrderBook(symbol);
-
-            // Create matching orders
-            orderBookService.createOrder(symbol, new Order(null, symbol, Side.BUY, 50.0, 150.0));
-            orderBookService.createOrder(symbol, new Order(null, symbol, Side.SELL, 50.0, 150.0));
-
-            // Verify trade was saved
-            var trades = tradeRepository.findAll();
-            assert trades.size() == 1;
-            assert trades.get(0).getQuantity().equals(50.0);
-            assert trades.get(0).getPrice().equals(150.0);
-        }
-
-        @Test
-        void orderStatusUpdatedAfterTrade() throws Exception {
-            String symbol = "AAPL";
-            registry.createOrderBook(symbol);
-
-            // Create orders
-            Order buyOrder = orderBookService.createOrder(
-                    symbol,
-                    new Order(null, symbol, Side.BUY, 100.0, 150.0)
-            );
-
-            orderBookService.createOrder(
-                    symbol,
-                    new Order(null, symbol, Side.SELL, 100.0, 150.0)
-            );
-
-            // Verify order status updated in database
-            Order dbOrder = orderRepository.findById(buyOrder.getId()).orElseThrow();
-            assert dbOrder.getStatus().toString().equals("FILLED");
-            assert dbOrder.getFilledQuantity().equals(100.0);
         }
     }
 

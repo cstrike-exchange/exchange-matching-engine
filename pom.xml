@@ -16,6 +16,7 @@
     <modules>
         <module>matching-engine</module>
         <module>common-libs</module>
+        <module>order-persist-service</module>
     </modules>
 
     <properties>

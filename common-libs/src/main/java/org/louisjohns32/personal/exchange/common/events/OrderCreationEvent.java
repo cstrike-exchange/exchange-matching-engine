@@ -2,9 +2,11 @@ package org.louisjohns32.personal.exchange.common.events;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 import lombok.Getter;
 import org.louisjohns32.personal.exchange.common.domain.Side;
 
+@Builder
 public class OrderCreationEvent implements OrderEvent {
     @Getter
     private final Long orderId;

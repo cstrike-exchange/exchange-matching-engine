@@ -1,25 +1,28 @@
-package org.louisjohns32.personal.exchange.services;
+package org.louisjohns32.personal.exchange.persist.service;
 
 import org.louisjohns32.personal.exchange.common.domain.OrderStatus;
 import org.louisjohns32.personal.exchange.common.events.OrderCancellationEvent;
 import org.louisjohns32.personal.exchange.common.events.OrderCreationEvent;
 import org.louisjohns32.personal.exchange.common.events.OrderEvent;
 import org.louisjohns32.personal.exchange.common.events.TradeExecutionEvent;
-import org.louisjohns32.personal.exchange.dao.OrderRepository;
-import org.louisjohns32.personal.exchange.dao.TradeRepository;
-import org.louisjohns32.personal.exchange.entities.Order;
-import org.louisjohns32.personal.exchange.entities.Trade;
+import org.louisjohns32.personal.exchange.persist.dao.OrderRepository;
+import org.louisjohns32.personal.exchange.persist.dao.TradeRepository;
+import org.louisjohns32.personal.exchange.persist.entity.OrderEntity;
+import org.louisjohns32.personal.exchange.persist.entity.TradeEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Component
+@Service
 public class OrderPersistService {
 
     @Value("${exchange.kafka.topics.order-events}")
-    private String ordersTopic; // TODO use this
+    private String ordersTopic;
+
+    @Value("${exchange.kafka.group-id}")
+    private String groupId;
 
     @Autowired
     OrderRepository orderRepository;
@@ -28,7 +31,7 @@ public class OrderPersistService {
     TradeRepository tradeRepository;
 
 
-    @KafkaListener(topics = "order.events", groupId = "group_id",
+    @KafkaListener(topics = "${exchange.kafka.topics.order-events}", groupId = "${exchange.kafka.group-id}",
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
@@ -45,7 +48,7 @@ public class OrderPersistService {
     }
 
     private void handleOrderCreation(OrderCreationEvent event) {
-        Order order = new Order(
+        OrderEntity order = new OrderEntity(
                 event.getOrderId(),
                 event.getSymbol(),
                 event.getSide(),
@@ -59,7 +62,7 @@ public class OrderPersistService {
 
     private void handleOrderCancellation(OrderCancellationEvent event) {
 
-        Order order = orderRepository.findById(event.getOrderId())
+        OrderEntity order = orderRepository.findById(event.getOrderId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Order not found: " + event.getOrderId()
                 ));
@@ -69,7 +72,7 @@ public class OrderPersistService {
     }
 
     private void handleTradeExecution(TradeExecutionEvent event) {
-        Trade trade = new Trade(
+        TradeEntity trade = new TradeEntity(
                 event.getSymbol(),
                 event.getBuyOrderId(),
                 event.getSellOrderId(),
@@ -86,7 +89,7 @@ public class OrderPersistService {
 
 
     private void updateOrderFromTrade(Long orderId, Double fillAmount) {
-        Order order = orderRepository.findById(orderId)
+        OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Order not found: " + orderId
                 ));

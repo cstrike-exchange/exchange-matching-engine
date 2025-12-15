@@ -2,8 +2,10 @@ package org.louisjohns32.personal.exchange.common.events;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 import lombok.Getter;
 
+@Builder
 public class TradeExecutionEvent implements OrderEvent {
     private final String symbol;
     @Getter

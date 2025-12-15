@@ -1,5 +1,9 @@
-FROM openjdk:23
+FROM eclipse-temurin:21-jre-alpine
+
+RUN apk add --no-cache curl
+
 WORKDIR /app
-COPY ./target/exchange.jar /app
+COPY matching-engine/target/matching-engine*.jar app.jar
 EXPOSE 8080
-CMD ["java", "-jar", "exchange.jar"]
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
