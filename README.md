@@ -11,8 +11,8 @@ Simulated exchange, using a distrubted systems approach to facilitate high throu
 - Serve real-time updates on state of orderbook
 
 ### Non-functional (aims)
-- Low latency orders (<5ms)
-- High throuput orders (10k/s on each symbol)
+- Low latency orders (<2ms p90)
+- High throuput orders (20k/s on each symbol)
 - Strong consistency of orders and trades
 - Eventual consistency on order status
 - High throughput order reads
