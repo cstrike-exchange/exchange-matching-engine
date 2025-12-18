@@ -53,7 +53,13 @@ public class KafkaConsumerConfig {
 
         ConcurrentKafkaListenerContainerFactory<String, OrderEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
+
         factory.setConsumerFactory(consumerFactory());
+
+        factory.setConcurrency(1);
+        factory.setBatchListener(true);
+        
+
         return factory;
     }
 }

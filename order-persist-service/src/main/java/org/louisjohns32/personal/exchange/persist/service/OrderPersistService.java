@@ -1,10 +1,7 @@
 package org.louisjohns32.personal.exchange.persist.service;
 
 import org.louisjohns32.personal.exchange.common.domain.OrderStatus;
-import org.louisjohns32.personal.exchange.common.events.OrderCancellationEvent;
-import org.louisjohns32.personal.exchange.common.events.OrderCreationEvent;
-import org.louisjohns32.personal.exchange.common.events.OrderEvent;
-import org.louisjohns32.personal.exchange.common.events.TradeExecutionEvent;
+import org.louisjohns32.personal.exchange.common.events.*;
 import org.louisjohns32.personal.exchange.persist.dao.OrderRepository;
 import org.louisjohns32.personal.exchange.persist.dao.TradeRepository;
 import org.louisjohns32.personal.exchange.persist.entity.OrderEntity;
@@ -14,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class OrderPersistService {
@@ -36,14 +35,17 @@ public class OrderPersistService {
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
-    public void consume(OrderEvent event) {
-        switch (event) {
-            case OrderCreationEvent orderCreationEvent -> handleOrderCreation(orderCreationEvent);
-            case OrderCancellationEvent orderCancellationEvent -> handleOrderCancellation(orderCancellationEvent);
-            case TradeExecutionEvent tradeExecutionEvent -> handleTradeExecution(tradeExecutionEvent);
-            default -> throw new IllegalArgumentException(
-                    "Unknown event type: " + event.getClass().getName()
-            );
+    public void consume(List<OrderEvent> events) {
+        for  (OrderEvent event : events) {
+            switch (event) {
+                case OrderCreationEvent orderCreationEvent -> handleOrderCreation(orderCreationEvent);
+                case OrderCancellationEvent orderCancellationEvent -> handleOrderCancellation(orderCancellationEvent);
+                case TradeExecutionEvent tradeExecutionEvent -> handleTradeExecution(tradeExecutionEvent);
+                case OrderRestEvent orderRestEvent -> {}
+                default -> throw new IllegalArgumentException(
+                        "Unknown event type: " + event.getClass().getName()
+                );
+            }
         }
     }
 
