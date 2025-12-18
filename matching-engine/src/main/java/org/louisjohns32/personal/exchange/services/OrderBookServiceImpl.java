@@ -3,11 +3,9 @@ package org.louisjohns32.personal.exchange.services;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
 import org.louisjohns32.personal.exchange.common.domain.Side;
-import org.louisjohns32.personal.exchange.common.events.OrderCancellationEvent;
-import org.louisjohns32.personal.exchange.common.events.OrderCreationEvent;
-import org.louisjohns32.personal.exchange.common.events.OrderEvent;
-import org.louisjohns32.personal.exchange.common.events.TradeExecutionEvent;
+import org.louisjohns32.personal.exchange.common.events.*;
 import org.louisjohns32.personal.exchange.dto.OrderBookDTO;
 import org.louisjohns32.personal.exchange.dto.OrderBookLevelDTO;
 import org.louisjohns32.personal.exchange.entities.Order;
@@ -26,6 +24,7 @@ import java.util.*;
  * Service handling order book operations and matching engine logic.
  * Implements price-time priority matching and publishes lifecycle events.
  */
+@Slf4j
 @Service
 public class OrderBookServiceImpl implements OrderBookService {
 
@@ -84,6 +83,18 @@ public class OrderBookServiceImpl implements OrderBookService {
         // Match order
         events.addAll(match(orderBook, newOrder).stream().map(this::buildTradeEvent).toList());
 
+        if (newOrder.getRemainingQuantity() > 0) {
+            events.add(OrderRestEvent.builder()
+                    .symbol(newOrder.getSymbol())
+                    .price(newOrder.getPrice())
+                    .side(newOrder.getSide())
+                    .quantity(newOrder.getRemainingQuantity())
+                    .sequenceNumber(sequenceGenerator.getSequenceNumber(newOrder.getSymbol()))
+                    .orderId(newOrder.getId())
+                    .build());
+            log.info("Created RestOrderEvent for symbol {}", newOrder.getSymbol());
+        }
+
         publisher.publishBatch(events);
         return newOrder;
 	}
@@ -94,8 +105,14 @@ public class OrderBookServiceImpl implements OrderBookService {
 		orderBook.removeOrder(order);
 
         publisher.publish(new OrderCancellationEvent(order.getId(),
-                order.getSymbol(), System.currentTimeMillis(),
-                sequenceGenerator.getSequenceNumber(order.getSymbol())));
+                order.getSymbol(),
+                System.currentTimeMillis(),
+                sequenceGenerator.getSequenceNumber(order.getSymbol()),
+                order.getSide(),
+                order.getPrice(),
+                order.getRemainingQuantity()
+                )
+        );
 	}
 
 	@Override
@@ -149,7 +166,8 @@ public class OrderBookServiceImpl implements OrderBookService {
                     sellOrderId,
                     opposingOrder.getPrice(),
                     amntToFill,
-                    Instant.now().toEpochMilli()
+                    Instant.now().toEpochMilli(),
+                    opposingOrder.getSide()
             );
 		}
 		return null;
@@ -195,7 +213,8 @@ public class OrderBookServiceImpl implements OrderBookService {
                 trade.getPrice(),
                 trade.getQuantity(),
                 trade.getExecutedAt().atZone(ZoneOffset.UTC).toInstant().toEpochMilli(),
-                sequenceGenerator.getSequenceNumber(trade.getSymbol())
+                sequenceGenerator.getSequenceNumber(trade.getSymbol()),
+                trade.getMakerSide()
             );
     }
 }

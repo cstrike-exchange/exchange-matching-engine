@@ -8,7 +8,7 @@ import org.louisjohns32.personal.exchange.common.domain.Side;
 
 @Builder
 @Getter
-public class OrderCreationEvent implements OrderEvent {
+public final class OrderCreationEvent implements OrderEvent {
     private final Long orderId;
     private final String symbol;
     private final Side side;
@@ -36,4 +36,13 @@ public class OrderCreationEvent implements OrderEvent {
         this.sequenceNumber = sequenceNumber;
     }
 
+    @Override
+    public long getSequenceNumber() {
+        return sequenceNumber;
+    }
+
+    @Override
+    public String getSymbol() {
+        return symbol;
+    }
 }

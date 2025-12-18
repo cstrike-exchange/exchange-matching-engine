@@ -13,11 +13,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = TradeExecutionEvent.class, name = "TRADE_EXECUTED"),
         @JsonSubTypes.Type(value = OrderCancellationEvent.class, name = "ORDER_CANCELLED")
 })
-public interface OrderEvent {
+public sealed interface OrderEvent
+permits OrderCreationEvent, OrderCancellationEvent, TradeExecutionEvent, OrderRestEvent
+{
 
     String getSymbol();
-    
-    long getTimestamp();
 
     long getSequenceNumber();
 }

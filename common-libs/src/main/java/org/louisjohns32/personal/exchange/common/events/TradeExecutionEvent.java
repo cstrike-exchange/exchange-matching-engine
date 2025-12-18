@@ -4,10 +4,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
+import org.louisjohns32.personal.exchange.common.domain.Side;
 
 @Builder
 @Getter
-public class TradeExecutionEvent implements OrderEvent {
+public final class TradeExecutionEvent implements OrderEvent {
     private final String symbol;
     private final long buyOrderId;
     private final long sellOrderId;
@@ -15,6 +16,7 @@ public class TradeExecutionEvent implements OrderEvent {
     private final double quantity;
     private final long timestamp;
     private final long sequenceNumber;
+    private final Side makerSide;
 
     @JsonCreator
     public TradeExecutionEvent(
@@ -24,7 +26,8 @@ public class TradeExecutionEvent implements OrderEvent {
             @JsonProperty("price") double price,
             @JsonProperty("quantity") double quantity,
             @JsonProperty("timestamp") long timestamp,
-            @JsonProperty("sequenceNumber") long sequenceNumber){
+            @JsonProperty("sequenceNumber") long sequenceNumber,
+            @JsonProperty("makerSide") Side makerSide){
         this.symbol = symbol;
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
@@ -32,11 +35,13 @@ public class TradeExecutionEvent implements OrderEvent {
         this.quantity = quantity;
         this.timestamp = timestamp;
         this.sequenceNumber = sequenceNumber;
+        this.makerSide = makerSide;
     }
 
     @Override
     public String getSymbol() { return symbol; }
 
     @Override
-    public long getTimestamp() { return timestamp; }
+    public long getSequenceNumber() { return sequenceNumber; }
+
 }

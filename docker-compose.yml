@@ -128,6 +128,23 @@ services:
     networks:
       - exchange-network
 
+  market-data-service:
+    build:
+      context: .
+      dockerfile: market-data-service/Dockerfile
+    container_name: market-data-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      EXCHANGE_KAFKA_TOPICS_ORDER_EVENTS: order.events
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: market_data_service
+    networks:
+      - exchange-network
+
 volumes:
   postgres_data:
 

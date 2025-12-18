@@ -31,12 +31,12 @@ public class OrderPersistService {
     TradeRepository tradeRepository;
 
 
+    // TODO we should be consuming events in batches and batching database transactions to increase TPS
     @KafkaListener(topics = "${exchange.kafka.topics.order-events}", groupId = "${exchange.kafka.group-id}",
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
     public void consume(OrderEvent event) {
-        System.out.println("Order event received: " + event);
         switch (event) {
             case OrderCreationEvent orderCreationEvent -> handleOrderCreation(orderCreationEvent);
             case OrderCancellationEvent orderCancellationEvent -> handleOrderCancellation(orderCancellationEvent);
