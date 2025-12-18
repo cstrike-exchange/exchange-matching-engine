@@ -23,7 +23,7 @@ Simulated exchange, using a distrubted systems approach to facilitate high throu
 - **Matching Engine**: Servers order requests using in-memory orderbook. Publishes order/trade events to Kafka (I plan to add a disk WAL to write events to instead of publishing straight to Kafka, decreasing latency). 
 - **Order Persist Service**: Consumes Kafka events and writes to database to reflect new state.
 - **Order Query Service**: Serves order read requests by querying database. **Why?** decreases load on matching engine significantly, allowing for lower latency and higher throughput order requests.
-- **Market Data Service**: (WIP) Serves orderbook state requests, and orderbook subscriptions (through websocket). Maintains orderbook state in-memory by consuming Kafka events.
+- **Market Data Service**: Serves orderbook state requests, and orderbook subscriptions (through websocket). Maintains orderbook state in-memory by consuming Kafka events.
 - **API gateway**
 - **Kafka**
 - **Order Entry Service**: (WIP) Orchestrates order write requests. Handles user authorisation and locks user balance. This isn't scoped for the current implementation, but is worth a mention. 
